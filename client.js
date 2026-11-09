@@ -326,10 +326,10 @@ window.__ModuleLoader__.load({
       .dd-launcher-count{font-size:10px;font-weight:500;line-height:1;color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums}
       .dd-launcher:hover .dd-launcher-count{color:var(--dsw-alias-label-primary)}
       .dd-panel{position:fixed;right:18px;top:64px;display:flex;align-items:center;z-index:9000;font-family:inherit;color:#e4e4e7;pointer-events:none}
-      .dd-frame{position:relative;flex:none;display:flex;flex-direction:column;height:min(70vh,840px);max-height:calc(100vh - 112px);background:#18181b;border:1px solid #27272a;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.14);overflow:visible;color:#f4f4f5;pointer-events:auto;transition:width .2s ease;animation:dd-in .18s ease-out}
+      .dd-frame{position:relative;flex:none;display:flex;flex-direction:column;height:min(70vh,840px);max-height:calc(100vh - 72px);background:#18181b;border:1px solid #27272a;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.14);overflow:visible;color:#f4f4f5;pointer-events:auto;transition:width .2s ease;animation:dd-in .18s ease-out}
       .dd-head{height:36px;flex:none;display:flex;align-items:center;gap:4px;padding:0 8px;background:#27272a;border-bottom:1px solid rgba(63,63,70,.6);border-radius:10px 10px 0 0;user-select:none;cursor:grab}
       .dd-head:active{cursor:grabbing}
-      .dd-head-left{display:flex;align-items:center;gap:5px;min-width:0;flex:1}
+      .dd-head-left{display:flex;align-items:center;justify-content:space-between;gap:5px;min-width:0;flex:1}
       .dd-device{display:flex;align-items:center;gap:4px;min-width:0;height:22px;padding:0 4px;margin-left:-4px;border:0;border-radius:5px;background:transparent;color:#f4f4f5;cursor:pointer;font:inherit}
       .dd-device:hover{background:rgba(255,255,255,.07)}
       .dd-device svg:first-child{color:#10b981;flex:none}
@@ -342,14 +342,11 @@ window.__ModuleLoader__.load({
       .dd-status[data-status="connecting"]{background:rgba(234,179,8,.12);color:#facc15;border-color:rgba(234,179,8,.2)}
       .dd-status[data-status="error"],.dd-status[data-status="offline"]{background:rgba(239,68,68,.12);color:#f87171;border-color:rgba(239,68,68,.2)}
       .dd-dot{width:4px;height:4px;border-radius:50%;background:currentColor}
-      .dd-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;flex:none;border:0;border-radius:5px;background:transparent;color:#a1a1aa;cursor:pointer;transition:background .15s ease,color .15s ease}
-      .dd-icon-btn:hover:not(:disabled){background:rgba(255,255,255,.08);color:#f4f4f5}
-      .dd-icon-btn:disabled{opacity:.35;cursor:default}
-      .dd-icon-btn[data-active="true"]{color:#c7d2fe;background:rgba(99,102,241,.16)}
-      .dd-body{flex:1;min-height:0;display:flex}
+      .dd-body{position:relative;flex:1;min-height:0;display:flex}
       .dd-rail{position:absolute;right:calc(100% + 2px);top:50%;transform:translateY(-50%);width:32px;display:flex;flex-direction:column;background:#fff;border:1px solid #e3e3e8;border-right:0;border-radius:9px 0 0 9px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.06);pointer-events:auto;z-index:2}
       .dd-rail button{display:flex;align-items:center;justify-content:center;width:100%;height:38px;border:0;border-bottom:1px solid #f1f1f4;background:transparent;color:#63636b;cursor:pointer;transition:background .15s ease,color .15s ease}
       .dd-rail button:last-child{border-bottom:0}
+      .dd-rail-sep{height:1px;flex:none;background:#f1f1f4}
       .dd-rail button:hover:not(:disabled){background:#fafafc;color:#1c1c21}
       .dd-rail button:disabled{opacity:.35;cursor:default}
       .dd-rail button[data-active="true"]{background:#eeedfd;color:#4f46e5}
@@ -1512,7 +1509,10 @@ window.__ModuleLoader__.load({
         h('div', {
           ref: frameRef,
           className: 'dd-frame',
-          style: { width: `${frameWidth}px` },
+          style: {
+            width: `${frameWidth}px`,
+            ...(stripOpen ? { height: `calc(min(70vh, 840px) + ${STRIP_HEIGHT}px)` } : {}),
+          },
         },
         h('div', {
           className: 'dd-head',
@@ -1531,7 +1531,7 @@ window.__ModuleLoader__.load({
                 onClick: () => setSwitcherOpen((value) => !value),
               },
                 h(Icon, { name: 'phone', size: 13 }),
-                h('span', { className: 'dd-device-name', style: { maxWidth: isCompact ? 92 : 136 } }, deviceName),
+                h('span', { className: 'dd-device-name', style: { maxWidth: isCompact ? 150 : 240 } }, deviceName),
                 h(Icon, { name: 'chevron', size: 10 }),
               ),
               switcherOpen && h('div', { className: 'dd-menu' },
@@ -1561,47 +1561,6 @@ window.__ModuleLoader__.load({
               !isCompact && h('span', null, statusText),
             ),
           ),
-          shots.length > 0 && h('button', {
-            type: 'button',
-            className: 'dd-icon-btn',
-            title: t.history,
-            'aria-label': t.history,
-            'data-active': stripOpen ? 'true' : 'false',
-            onClick: () => setStripOpen((value) => !value),
-          }, h(Icon, { name: 'history', size: 13 })),
-          h('button', {
-            type: 'button',
-            className: 'dd-icon-btn',
-            title: t.capture,
-            'aria-label': t.capture,
-            disabled: !serial || busy,
-            onClick: () => void capture(),
-          }, h(Icon, { name: 'camera', size: 13 })),
-          shots.length > 0 && h('button', {
-            type: 'button',
-            className: 'dd-icon-btn',
-            title: t.send,
-            'aria-label': t.send,
-            disabled: sending,
-            onClick: () => void sendShot(selectedShot || shots[0]),
-          }, h(Icon, { name: 'send', size: 13 })),
-          h('button', {
-            type: 'button',
-            className: 'dd-icon-btn',
-            title: t.refresh,
-            'aria-label': t.refresh,
-            onClick: () => {
-              retryRef.current = 0;
-              setNonce((value) => value + 1);
-            },
-          }, h(Icon, { name: 'refresh', size: 13 })),
-          h('button', {
-            type: 'button',
-            className: 'dd-icon-btn',
-            title: t.close,
-            'aria-label': t.close,
-            onClick: onClose,
-          }, h(Icon, { name: 'minimize', size: 13 })),
         ),
 
         h('div', { className: 'dd-body' },
@@ -1638,6 +1597,39 @@ window.__ModuleLoader__.load({
                 setInputOpen(false);
               },
             }, h(Icon, { name: 'link', size: 14 })),
+            h('div', { className: 'dd-rail-sep' }),
+            shots.length > 0 && h('button', {
+              type: 'button',
+              title: t.history,
+              'data-active': stripOpen ? 'true' : 'false',
+              onClick: () => setStripOpen((value) => !value),
+            }, h(Icon, { name: 'history', size: 14 })),
+            h('button', {
+              type: 'button',
+              title: t.capture,
+              disabled: !serial || busy,
+              onClick: () => void capture(),
+            }, h(Icon, { name: 'camera', size: 14 })),
+            shots.length > 0 && h('button', {
+              type: 'button',
+              title: t.send,
+              disabled: sending,
+              onClick: () => void sendShot(selectedShot || shots[0]),
+            }, h(Icon, { name: 'send', size: 14 })),
+            h('button', {
+              type: 'button',
+              title: t.refresh,
+              onClick: () => {
+                retryRef.current = 0;
+                setNonce((value) => value + 1);
+              },
+            }, h(Icon, { name: 'refresh', size: 14 })),
+            h('div', { className: 'dd-rail-sep' }),
+            h('button', {
+              type: 'button',
+              title: t.close,
+              onClick: onClose,
+            }, h(Icon, { name: 'minimize', size: 14 })),
           ),
 
           h('div', {

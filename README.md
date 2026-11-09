@@ -79,8 +79,8 @@ run `pnpm install` there after dependency changes.
 1. Open a Session.
 2. Click the device icon in the Session header, at the top right.
 3. Pick a running Android device to open its mirror, or start a stopped AVD.
-4. In the mirror, use the left rail for back, home, text, and links.
-5. Use the title bar for screenshots, reconnect, and minimize.
+4. In the mirror, use the left rail for back, home, text, links, screenshot, history, send, reconnect, and close. History and send appear once a screenshot exists.
+5. Use the title bar for the device switcher, connection status, and drag handle.
 6. Select a screenshot, then send it to the current chat.
 
 Wireless ADB:
