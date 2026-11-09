@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "设备台",
+    "description": "在 Harness 内镜像 Android 设备、管理模拟器、配对无线 ADB，并让 Agent 读取截图。"
+  }
+}

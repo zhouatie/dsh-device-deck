@@ -1,0 +1,73 @@
+{
+  "name": "dsh-device-deck",
+  "version": "0.1.0",
+  "description": "Device mirror, emulator manager, and agent tools for DeepSeek Harness.",
+  "type": "module",
+  "license": "MIT",
+  "author": "zhouatie",
+  "homepage": "https://github.com/zhouatie/dsh-device-deck#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zhouatie/dsh-device-deck.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zhouatie/dsh-device-deck/issues"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "android",
+    "emulator",
+    "device-mirror",
+    "scrcpy",
+    "webcodecs",
+    "e2e-testing",
+    "agent"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "bin/*",
+    "LICENSE",
+    "LICENSE-scrcpy",
+    "NOTICE",
+    "README.md",
+    "README.zh-CN.md",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md"
+  ],
+  "scripts": {
+    "check": "node --check index.js && node --check client.js"
+  },
+  "dependencies": {
+    "@yume-chan/adb": "2.6.3",
+    "@yume-chan/adb-scrcpy": "2.3.2",
+    "@yume-chan/adb-server-node-tcp": "2.5.2"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ]
+    }
+  }
+}

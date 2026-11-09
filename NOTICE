@@ -1,0 +1,9 @@
+This bundle ships the scrcpy server binary (bin/scrcpy-server, version 3.3.3)
+from the scrcpy project: https://github.com/Genymobile/scrcpy
+
+scrcpy is Copyright (C) 2017-2025 Genymobile and is licensed under the
+Apache License, Version 2.0. A copy of that license is included in
+LICENSE-scrcpy.
+
+The binary is used unmodified. It runs on the Android device to encode the
+device screen for the mirror stream.

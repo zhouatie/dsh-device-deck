@@ -1,0 +1,1774 @@
+window.__ModuleLoader__.load({
+  id: 'dsh-device-deck',
+  factory(require) {
+    const React = require('react');
+    const ReactDOM = require('react-dom');
+    const h = React.createElement;
+    const { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } = React;
+
+    const API = '/api/device-deck';
+    const STORE_KEY = ['dsh-device-deck', 'state', 'v1'].join('.');
+    const T_META = 1;
+    const T_CONFIG = 2;
+    const T_DATA = 3;
+    const T_ERROR = 4;
+    const T_END = 5;
+    const HEADER_HEIGHT = 36;
+    const STRIP_HEIGHT = 50;
+
+    const COPY = {
+      zh: {
+        title: '设备台',
+        live: '实时',
+        connecting: '连接中',
+        offline: '离线',
+        noDevice: '未检测到 Android 设备',
+        noDeviceHint: '请连接 USB 并开启调试，或启动模拟器。',
+        adbMissing: '未找到 adb',
+        refresh: '刷新设备',
+        capture: '截图',
+        send: '发送到当前对话',
+        history: '截图历史',
+        close: '收起',
+        back: '返回键',
+        home: '主屏幕',
+        text: '文本输入',
+        link: '打开链接',
+        textHint: '英文、数字与常见符号；中文请用系统输入法。',
+        sendText: '发送',
+        open: '打开',
+        urlHint: 'https://… 或 app://…',
+        retry: '重新连接',
+        streamError: '未能连接到设备实时画面',
+        disconnected: '设备画面已断开',
+        emptyShot: '还没有截图',
+        selected: '已选定',
+        sent: '已发送到当前对话',
+        shotSaved: '截图已保存',
+        fallback: '上传失败，已把截图路径插入输入框',
+        connectingHint: '正在连接设备画面…',
+        switchDevice: '切换设备',
+        screenshotStrip: '截图',
+        enterText: '先在手机上点选输入框，再在此输入',
+        enterUrl: '输入地址后回车',
+        menuRunning: '运行中',
+        menuNoOnline: '没有设备在线',
+        menuReady: '已就绪',
+        menuStarting: '启动中',
+        menuEmulator: '模拟器',
+        menuReal: '真机',
+        menuIosEmulator: 'iOS 模拟器',
+        menuNotStarted: '未启动 · 无窗口运行',
+        menuAndroidEmulators: 'Android 模拟器',
+        menuIosEmulators: 'iOS 模拟器',
+        menuShutdown: '已关机',
+        menuStart: '启动',
+        menuStartingBtn: '启动中',
+        menuStop: '停止模拟器',
+        menuOpenMirror: '打开镜像',
+        menuOpenSimulator: '打开 Simulator',
+        menuWifiPlaceholder: '192.168.1.102:5555',
+        menuConnect: '连接',
+        menuConnecting: '连接中',
+        menuRefresh: '重新检测设备',
+        menuAll: '全部',
+        menuCollapse: '收起',
+        menuEmpty: '没有可用模拟器',
+        menuEmptyHint: '可连接无线 ADB 真机，或安装 Android AVD。',
+        menuIosUnsupported: '已打开 Simulator；iOS 画面暂不支持镜像。',
+        menuJustStarted: '刚刚启动',
+        menuMinutes: '分',
+        menuSeconds: '秒',
+        menuHours: '小时',
+        menuDeviceUnit: '台',
+        menuItemUnit: '个',
+        menuStartingWait: '模拟器正在启动，就绪后可打开镜像',
+        menuStopRequested: '已请求停止',
+        menuOnline: '台在线',
+        menuNoDevice: '没有设备在线，点击启动模拟器',
+      },
+      en: {
+        title: 'Device Deck',
+        live: 'Live',
+        connecting: 'Connecting',
+        offline: 'Offline',
+        noDevice: 'No Android device found',
+        noDeviceHint: 'Connect USB with debugging on, or start an emulator.',
+        adbMissing: 'adb not found',
+        refresh: 'Refresh devices',
+        capture: 'Screenshot',
+        send: 'Send to current chat',
+        history: 'Screenshot history',
+        close: 'Minimize',
+        back: 'Back',
+        home: 'Home',
+        text: 'Text input',
+        link: 'Open link',
+        textHint: 'ASCII only; use the device IME for other scripts.',
+        sendText: 'Send',
+        open: 'Open',
+        urlHint: 'https://… or app://…',
+        retry: 'Reconnect',
+        streamError: 'Cannot connect to the device stream',
+        disconnected: 'Device stream disconnected',
+        emptyShot: 'No screenshots yet',
+        selected: 'Selected',
+        sent: 'Sent to the current chat',
+        shotSaved: 'Screenshot saved',
+        fallback: 'Upload failed; the screenshot path was inserted into the composer',
+        connectingHint: 'Connecting to the device…',
+        switchDevice: 'Switch device',
+        screenshotStrip: 'Shots',
+        enterText: 'Focus a field on the device, then type here',
+        enterUrl: 'Type a URL and press Enter',
+        menuRunning: 'Running',
+        menuNoOnline: 'No device online',
+        menuReady: 'Ready',
+        menuStarting: 'Starting',
+        menuEmulator: 'Emulator',
+        menuReal: 'Device',
+        menuIosEmulator: 'iOS simulator',
+        menuNotStarted: 'Stopped · headless',
+        menuAndroidEmulators: 'Android emulators',
+        menuIosEmulators: 'iOS simulators',
+        menuShutdown: 'Shutdown',
+        menuStart: 'Start',
+        menuStartingBtn: 'Starting',
+        menuStop: 'Stop emulator',
+        menuOpenMirror: 'Open mirror',
+        menuOpenSimulator: 'Open Simulator',
+        menuWifiPlaceholder: '192.168.1.102:5555',
+        menuConnect: 'Connect',
+        menuConnecting: 'Connecting',
+        menuRefresh: 'Refresh devices',
+        menuAll: 'All',
+        menuCollapse: 'Collapse',
+        menuEmpty: 'No simulator available',
+        menuEmptyHint: 'Connect a wireless ADB device, or install an Android AVD.',
+        menuIosUnsupported: 'Simulator opened; the iOS mirror is not supported yet.',
+        menuJustStarted: 'just started',
+        menuMinutes: 'min',
+        menuSeconds: 's',
+        menuHours: 'h',
+        menuDeviceUnit: 'devices',
+        menuItemUnit: 'AVDs',
+        menuStartingWait: 'The emulator is starting; open the mirror once it is ready.',
+        menuStopRequested: 'Stop requested',
+        menuOnline: 'online',
+        menuNoDevice: 'No device online. Click to start an emulator.',
+      },
+    };
+
+    function loadStore() {
+      try {
+        const raw = window.localStorage.getItem(STORE_KEY);
+        const parsed = raw ? JSON.parse(raw) : null;
+        return {
+          open: Boolean(parsed?.open),
+          serial: typeof parsed?.serial === 'string' ? parsed.serial : '',
+          offset: {
+            x: Number.isFinite(parsed?.offset?.x) ? parsed.offset.x : 0,
+            y: Number.isFinite(parsed?.offset?.y) ? parsed.offset.y : 0,
+          },
+        };
+      } catch {
+        return { open: false, serial: '', offset: { x: 0, y: 0 } };
+      }
+    }
+
+    const shared = loadStore();
+
+    function saveStore() {
+      try {
+        window.localStorage.setItem(STORE_KEY, JSON.stringify(shared));
+      } catch {
+        /* ignore */
+      }
+    }
+
+    function useCopy(ctx) {
+      const read = () => {
+        const active = ctx.locale?.getLocale?.().active || 'en';
+        return String(active).toLowerCase().startsWith('zh') ? COPY.zh : COPY.en;
+      };
+      const [copy, setCopy] = useState(read);
+      useEffect(() => {
+        if (!ctx.locale?.subscribe) return undefined;
+        return ctx.locale.subscribe(() => setCopy(read()));
+      }, [ctx]);
+      return copy;
+    }
+
+    async function apiJson(path, init) {
+      const response = await fetch(`${API}${path}`, {
+        cache: 'no-store',
+        ...init,
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`);
+      return data;
+    }
+
+    function postJson(path, value) {
+      return apiJson(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(value),
+      });
+    }
+
+    function shotUrl(shotPath) {
+      return `${API}/file?path=${encodeURIComponent(shotPath)}`;
+    }
+
+    function concatBytes(left, right) {
+      if (left.length === 0) return right;
+      const out = new Uint8Array(left.length + right.length);
+      out.set(left, 0);
+      out.set(right, left.length);
+      return out;
+    }
+
+    function avcCodecString(data) {
+      let nal = -1;
+      for (let index = 0; index + 3 < data.length; index += 1) {
+        if (data[index] !== 0 || data[index + 1] !== 0) continue;
+        if (data[index + 2] === 1) {
+          nal = index + 3;
+          break;
+        }
+        if (data[index + 2] === 0 && data[index + 3] === 1) {
+          nal = index + 4;
+          break;
+        }
+      }
+      if (nal < 0 || nal + 3 >= data.length) return 'avc1.42E01E';
+      const hex = (value) => Number(value || 0).toString(16).toUpperCase().padStart(2, '0');
+      return `avc1.${hex(data[nal + 1])}${hex(data[nal + 2])}${hex(data[nal + 3])}`;
+    }
+
+    function statusLabel(t, status) {
+      if (status === 'live') return t.live;
+      if (status === 'connecting') return t.connecting;
+      return t.offline;
+    }
+
+    function Icon({ name, size = 15 }) {
+      const common = {
+        width: size,
+        height: size,
+        viewBox: '0 0 24 24',
+        fill: 'none',
+        stroke: 'currentColor',
+        strokeWidth: 1.8,
+        strokeLinecap: 'round',
+        strokeLinejoin: 'round',
+        'aria-hidden': true,
+        style: { display: 'block' },
+      };
+      switch (name) {
+        case 'phone':
+          return h('svg', common, h('rect', { x: 6, y: 2.5, width: 12, height: 19, rx: 2.6 }), h('path', { d: 'M10 5.5h4' }), h('circle', { cx: 12, cy: 18.4, r: 0.7, fill: 'currentColor', stroke: 'none' }));
+        case 'camera':
+          return h('svg', common, h('path', { d: 'M3 8.5h3.2l1.4-2h8.8l1.4 2H21v11H3z' }), h('circle', { cx: 12, cy: 13.5, r: 3.4 }));
+        case 'refresh':
+          return h('svg', common, h('path', { d: 'M20 11a8 8 0 1 0-2.3 6.1' }), h('path', { d: 'M20 4v7h-7' }));
+        case 'history':
+          return h('svg', common, h('rect', { x: 3, y: 5, width: 18, height: 15, rx: 2.6 }), h('circle', { cx: 9, cy: 12, r: 2.4 }), h('path', { d: 'M14 10.5h4M14 14h4' }));
+        case 'send':
+          return h('svg', common, h('path', { d: 'M21 3 10.5 13.5' }), h('path', { d: 'M21 3 14.5 21 10.5 13.5 3 9.5z' }));
+        case 'close':
+          return h('svg', common, h('path', { d: 'M6 6l12 12M18 6 6 18' }));
+        case 'minimize':
+          return h('svg', common, h('path', { d: 'M5 12h14' }));
+        case 'back':
+          return h('svg', common, h('path', { d: 'M15 5l-7 7 7 7' }));
+        case 'home':
+          return h('svg', common, h('path', { d: 'M4 11 12 4l8 7' }), h('path', { d: 'M6.5 10v9.5h11V10' }));
+        case 'keyboard':
+          return h('svg', common, h('rect', { x: 2.5, y: 6, width: 19, height: 12, rx: 2.2 }), h('path', { d: 'M6 10h1M10 10h1M14 10h1M18 10h.5M7 14h10' }));
+        case 'link':
+          return h('svg', common, h('path', { d: 'M10 14a4 4 0 0 0 5.7 0l2.6-2.6a4 4 0 1 0-5.7-5.7L11.5 6.8' }), h('path', { d: 'M14 10a4 4 0 0 0-5.7 0l-2.6 2.6a4 4 0 1 0 5.7 5.7l1.1-1.1' }));
+        case 'chevron':
+          return h('svg', common, h('path', { d: 'M6 9l6 6 6-6' }));
+        case 'alert':
+          return h('svg', common, h('path', { d: 'M12 3 2.5 20h19z' }), h('path', { d: 'M12 9v5M12 17.2v.1' }));
+        case 'android':
+          return h('svg', common, h('path', { d: 'M7 9h10v7.5a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 7 16.5z' }), h('path', { d: 'M9 9 7.5 5.5M15 9l1.5-3.5' }), h('path', { d: 'M5 10.5v5M19 10.5v5' }));
+        case 'monitorplay':
+          return h('svg', common, h('rect', { x: 3, y: 4, width: 18, height: 13, rx: 2 }), h('path', { d: 'M10 8.5l5 2.5-5 2.5z' }), h('path', { d: 'M12 17v3M9 20h6' }));
+        case 'power':
+          return h('svg', common, h('path', { d: 'M12 3v8' }), h('path', { d: 'M6.7 6.7a8 8 0 1 0 10.6 0' }));
+        case 'wifi':
+          return h('svg', common, h('path', { d: 'M3.5 9.5a13 13 0 0 1 17 0' }), h('path', { d: 'M6.5 13a8.5 8.5 0 0 1 11 0' }), h('path', { d: 'M9.5 16.5a4 4 0 0 1 5 0' }), h('circle', { cx: 12, cy: 19.5, r: 0.7, fill: 'currentColor', stroke: 'none' }));
+        case 'play':
+          return h('svg', common, h('path', { d: 'M8 5.5l10 6.5-10 6.5z' }));
+        case 'external':
+          return h('svg', common, h('path', { d: 'M14 4h6v6' }), h('path', { d: 'M20 4 11 13' }), h('path', { d: 'M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5' }));
+        default:
+          return null;
+      }
+    }
+
+    function LauncherIcon({ size = 16 }) {
+      return h('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true, style: { display: 'block' } },
+        h('rect', { x: 6.5, y: 2.5, width: 11, height: 19, rx: 2.5 }),
+        h('path', { d: 'M10.5 5.5h3' }),
+        h('circle', { cx: 12, cy: 18.2, r: 0.6, fill: 'currentColor', stroke: 'none' }),
+      );
+    }
+
+    const CSS = `
+      .dd-launcher{position:relative;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:0;border-radius:7px;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;transition:background .15s ease,color .15s ease}
+      .dd-launcher:hover{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary)}
+      .dd-launcher[data-active="true"]{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary)}
+      .dd-launcher[data-count="true"]{width:auto;padding:0 4px;gap:3px}
+      .dd-launcher-count{font-size:10px;font-weight:500;line-height:1;color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums}
+      .dd-launcher:hover .dd-launcher-count{color:var(--dsw-alias-label-primary)}
+      .dd-panel{position:fixed;right:18px;top:64px;display:flex;align-items:center;z-index:9000;font-family:inherit;color:#e4e4e7;pointer-events:none}
+      .dd-frame{position:relative;flex:none;display:flex;flex-direction:column;height:min(70vh,840px);max-height:calc(100vh - 112px);background:#18181b;border:1px solid #27272a;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.14);overflow:visible;color:#f4f4f5;pointer-events:auto;transition:width .2s ease;animation:dd-in .18s ease-out}
+      .dd-head{height:36px;flex:none;display:flex;align-items:center;gap:4px;padding:0 8px;background:#27272a;border-bottom:1px solid rgba(63,63,70,.6);border-radius:10px 10px 0 0;user-select:none;cursor:grab}
+      .dd-head:active{cursor:grabbing}
+      .dd-head-left{display:flex;align-items:center;gap:5px;min-width:0;flex:1}
+      .dd-device{display:flex;align-items:center;gap:4px;min-width:0;height:22px;padding:0 4px;margin-left:-4px;border:0;border-radius:5px;background:transparent;color:#f4f4f5;cursor:pointer;font:inherit}
+      .dd-device:hover{background:rgba(255,255,255,.07)}
+      .dd-device svg:first-child{color:#10b981;flex:none}
+      .dd-device svg:last-child{color:#71717a;flex:none;transition:transform .15s ease}
+      .dd-device[data-open="true"] svg:last-child{transform:rotate(180deg)}
+      .dd-device-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:500}
+      .dd-status{display:inline-flex;align-items:center;gap:3px;height:18px;padding:0 5px;border-radius:4px;font-size:10px;font-weight:500;white-space:nowrap;border:1px solid transparent;flex:none}
+      .dd-status[data-compact="true"]{padding:0 4px}
+      .dd-status[data-status="live"]{background:rgba(16,185,129,.12);color:#34d399;border-color:rgba(16,185,129,.2)}
+      .dd-status[data-status="connecting"]{background:rgba(234,179,8,.12);color:#facc15;border-color:rgba(234,179,8,.2)}
+      .dd-status[data-status="error"],.dd-status[data-status="offline"]{background:rgba(239,68,68,.12);color:#f87171;border-color:rgba(239,68,68,.2)}
+      .dd-dot{width:4px;height:4px;border-radius:50%;background:currentColor}
+      .dd-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;flex:none;border:0;border-radius:5px;background:transparent;color:#a1a1aa;cursor:pointer;transition:background .15s ease,color .15s ease}
+      .dd-icon-btn:hover:not(:disabled){background:rgba(255,255,255,.08);color:#f4f4f5}
+      .dd-icon-btn:disabled{opacity:.35;cursor:default}
+      .dd-icon-btn[data-active="true"]{color:#c7d2fe;background:rgba(99,102,241,.16)}
+      .dd-body{flex:1;min-height:0;display:flex}
+      .dd-rail{position:absolute;right:calc(100% + 2px);top:50%;transform:translateY(-50%);width:32px;display:flex;flex-direction:column;background:#fff;border:1px solid #e3e3e8;border-right:0;border-radius:9px 0 0 9px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.06);pointer-events:auto;z-index:2}
+      .dd-rail button{display:flex;align-items:center;justify-content:center;width:100%;height:38px;border:0;border-bottom:1px solid #f1f1f4;background:transparent;color:#63636b;cursor:pointer;transition:background .15s ease,color .15s ease}
+      .dd-rail button:last-child{border-bottom:0}
+      .dd-rail button:hover:not(:disabled){background:#fafafc;color:#1c1c21}
+      .dd-rail button:disabled{opacity:.35;cursor:default}
+      .dd-rail button[data-active="true"]{background:#eeedfd;color:#4f46e5}
+      .dd-viewport{position:relative;flex:1;min-width:0;background:#000;overflow:hidden;touch-action:none;cursor:crosshair;border-radius:0 0 10px 10px}
+      .dd-canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block}
+      .dd-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:rgba(0,0,0,.82);color:#e4e4e7;text-align:center;padding:18px;font-size:12px;line-height:1.6;z-index:3}
+      .dd-overlay strong{font-size:12.5px;font-weight:600;color:#fafafa}
+      .dd-overlay p{margin:0;color:#a1a1aa;max-width:250px}
+      .dd-btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;height:28px;padding:0 12px;border:0;border-radius:6px;background:#3f3f46;color:#fafafa;font:inherit;font-size:11.5px;font-weight:500;cursor:pointer;transition:background .15s ease}
+      .dd-btn:hover{background:#52525b}
+      .dd-spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,.2);border-top-color:#a5b4fc;border-radius:50%;animation:dd-spin .9s linear infinite}
+      @keyframes dd-spin{to{transform:rotate(360deg)}}
+      .dd-ripple{position:absolute;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;border:1px solid rgba(255,255,255,.9);background:rgba(255,255,255,.35);pointer-events:none;animation:dd-ripple .28s ease-out forwards}
+      @keyframes dd-ripple{from{transform:scale(.5);opacity:1}to{transform:scale(1.6);opacity:0}}
+      @keyframes dd-in{from{opacity:0}to{opacity:1}}
+      .dd-strip{height:50px;flex:none;display:flex;align-items:center;gap:5px;padding:0 8px;background:#1c1c21;border-top:1px solid rgba(63,63,70,.6);border-radius:0 0 10px 10px;overflow-x:auto;overflow-y:hidden}
+      .dd-strip-label{flex:none;font-size:10px;color:#71717a;padding-right:2px}
+      .dd-thumb{flex:none;height:38px;padding:0;border:1px solid rgba(255,255,255,.14);border-radius:4px;background:#000;overflow:hidden;cursor:pointer;opacity:.75;transition:opacity .15s ease,border-color .15s ease}
+      .dd-thumb:hover{opacity:1}
+      .dd-thumb[data-selected="true"]{border-color:#818cf8;box-shadow:0 0 0 1px rgba(129,140,248,.7);opacity:1}
+      .dd-thumb img{height:100%;width:auto;display:block;object-fit:cover}
+      .dd-pop{position:absolute;right:42px;top:50%;transform:translateY(-50%);width:240px;display:flex;flex-direction:column;background:var(--dsw-alias-bg-overlay);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;box-shadow:0 16px 40px rgba(0,0,0,.26);z-index:6;overflow:hidden;color:var(--dsw-alias-label-primary);pointer-events:auto}
+      .dd-pop-head{display:flex;align-items:center;justify-content:space-between;gap:8px;height:34px;padding:0 8px 0 10px;border-bottom:1px solid var(--dsw-alias-border-l1);font-size:11.5px;font-weight:500;flex:none}
+      .dd-pop-head button{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border:0;border-radius:5px;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer}
+      .dd-pop-head button:hover{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary)}
+      .dd-pop textarea{width:100%;height:92px;resize:none;border:0;outline:none;background:transparent;color:var(--dsw-alias-label-primary);padding:9px 10px;font:inherit;font-size:11.5px;line-height:1.6}
+      .dd-pop input{width:100%;height:36px;border:0;outline:none;background:transparent;color:var(--dsw-alias-label-primary);padding:0 10px;font:inherit;font-size:11.5px}
+      .dd-pop-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 9px;border-top:1px solid var(--dsw-alias-border-l1)}
+      .dd-pop-hint{font-size:10px;color:var(--dsw-alias-label-secondary);line-height:1.45;min-width:0}
+      .dd-send{border:0;border-radius:6px;height:24px;padding:0 10px;background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-base);font:inherit;font-size:11px;font-weight:500;cursor:pointer;flex:none}
+      .dd-send:disabled{opacity:.35;cursor:default}
+      .dd-menu{position:absolute;left:8px;top:40px;width:238px;max-height:300px;overflow-y:auto;padding:4px;background:#232327;border:1px solid rgba(255,255,255,.12);border-radius:8px;box-shadow:0 18px 40px rgba(0,0,0,.45);z-index:8}
+      .dd-menu-title{padding:5px 7px 4px;font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;color:#71717a}
+      .dd-menu-item{display:flex;align-items:center;gap:7px;width:100%;height:30px;padding:0 7px;border:0;border-radius:6px;background:transparent;color:#e4e4e7;cursor:pointer;font:inherit;text-align:left}
+      .dd-menu-item:hover{background:rgba(255,255,255,.07)}
+      .dd-menu-item[data-active="true"]{background:rgba(99,102,241,.18)}
+      .dd-menu-item span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11.5px}
+      .dd-menu-item em{flex:none;margin-left:auto;font-style:normal;font-size:9.5px;color:#71717a}
+      .dd-notice{position:absolute;left:50%;bottom:68px;transform:translateX(-50%);max-width:300px;padding:6px 11px;border-radius:7px;background:rgba(24,24,27,.94);border:1px solid rgba(255,255,255,.14);color:#e4e4e7;font-size:11px;line-height:1.45;text-align:center;z-index:9;box-shadow:0 8px 20px rgba(0,0,0,.3);pointer-events:auto}
+      .dd-picker{position:fixed;z-index:9500;width:min(300px,calc(100vw - 16px));display:flex;flex-direction:column;background:var(--dsw-alias-bg-overlay);border:1px solid var(--dsw-alias-border-l2);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.14);overflow:hidden;color:var(--dsw-alias-label-primary);font-family:inherit;pointer-events:auto}
+      .dd-picker-scroll{flex:1;min-height:0;overflow-y:auto}
+      .dd-picker-section{height:26px;padding:0 12px;display:flex;align-items:center;justify-content:space-between;background:var(--dsw-alias-bg-layer-2);border-top:1px solid var(--dsw-alias-border-l1);border-bottom:1px solid var(--dsw-alias-border-l1);font-size:10.5px;color:var(--dsw-alias-label-secondary)}
+      .dd-picker-section:first-child{border-top:0}
+      .dd-picker-row{display:flex;align-items:center;gap:7px;padding:6px 12px;border-bottom:1px solid var(--dsw-alias-border-l1)}
+      .dd-picker-row:last-child{border-bottom:0}
+      .dd-picker-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;border:0;background:transparent;color:inherit;font:inherit;text-align:left;padding:0;cursor:pointer}
+      .dd-picker-line{display:flex;align-items:center;gap:6px;min-width:0}
+      .dd-picker-name{font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .dd-picker-main:hover .dd-picker-name{color:var(--dsw-alias-brand-primary)}
+      .dd-picker-detail{font-size:10.5px;color:var(--dsw-alias-label-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .dd-picker-status{flex:none;display:inline-flex;align-items:center;gap:3px;height:16px;padding:0 5px;border-radius:4px;font-size:9.5px;font-weight:500}
+      .dd-picker-status[data-state="booted"]{background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 14%, transparent);color:var(--dsw-alias-state-success-primary)}
+      .dd-picker-status[data-state="starting"]{background:color-mix(in srgb, var(--dsw-alias-brand-primary) 12%, transparent);color:var(--dsw-alias-brand-primary)}
+      .dd-picker-icon{flex:none;width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:4px;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer}
+      .dd-picker-icon:hover:not(:disabled){background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary)}
+      .dd-picker-icon[data-danger="true"]:hover:not(:disabled){background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent);color:var(--dsw-alias-state-error-primary)}
+      .dd-picker-icon:disabled{opacity:.4;cursor:default}
+      .dd-picker-start{flex:none;display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;border:0;border-radius:5px;background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-base);font:inherit;font-size:10.5px;font-weight:500;cursor:pointer}
+      .dd-picker-start:hover:not(:disabled){opacity:.9}
+      .dd-picker-start:disabled{opacity:.4;cursor:default}
+      .dd-picker-more{width:100%;height:24px;padding:0 12px;display:flex;align-items:center;gap:4px;border:0;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:10.5px;cursor:pointer}
+      .dd-picker-more:hover{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-brand-primary)}
+      .dd-picker-empty{padding:16px 12px;text-align:center;font-size:11px;line-height:1.6;color:var(--dsw-alias-label-secondary)}
+      .dd-picker-notice{padding:0 12px 7px;font-size:10.5px;line-height:1.45;color:var(--dsw-alias-label-secondary)}
+      .dd-picker-wifi{border-top:1px solid var(--dsw-alias-border-l1);padding:8px 12px;display:flex;flex-direction:column;gap:5px;background:var(--dsw-alias-bg-base)}
+      .dd-picker-wifi-row{display:flex;align-items:center;gap:6px}
+      .dd-picker-input{flex:1;min-width:0;height:24px;padding:0 7px;border:1px solid var(--dsw-alias-border-l1);border-radius:5px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:11px;outline:none}
+      .dd-picker-input:focus{border-color:var(--dsw-alias-brand-primary)}
+      .dd-picker-result{display:flex;align-items:center;gap:4px;font-size:10.5px;color:var(--dsw-alias-label-secondary);overflow:hidden}
+      .dd-picker-result[data-ok="false"]{color:var(--dsw-alias-state-error-primary)}
+      .dd-picker-result[data-ok="true"]{color:var(--dsw-alias-state-success-primary)}
+      .dd-picker-spinner{width:10px;height:10px;border:1.5px solid color-mix(in srgb, currentColor 25%, transparent);border-top-color:currentColor;border-radius:50%;animation:dd-spin .8s linear infinite;display:inline-block;flex:none}
+    `;
+
+    function formatDuration(seconds, t) {
+      const total = Math.max(0, Math.floor(Number(seconds) || 0));
+      if (total < 60) return t.menuJustStarted;
+      const minutes = Math.floor(total / 60);
+      if (minutes < 60) return `${minutes} ${t.menuMinutes} ${total % 60} ${t.menuSeconds}`;
+      return `${Math.floor(minutes / 60)} ${t.menuHours} ${minutes % 60} ${t.menuMinutes}`;
+    }
+
+    function DevicePicker({
+      inventory,
+      rect,
+      menuRef,
+      t,
+      onOpenAndroid,
+      onOpenIos,
+      onStartAvd,
+      onStartIos,
+      onStop,
+      onRefresh,
+      onNotice,
+      launching,
+      stopping,
+      wifiAddress,
+      setWifiAddress,
+      onConnectWifi,
+      wifiBusy,
+      wifiResult,
+      notice,
+    }) {
+      const [expanded, setExpanded] = useState({});
+      const android = inventory?.android || { running: [], avds: { available: false, items: [], pending: [], message: '' } };
+      const ios = inventory?.ios || { available: false, running: [], pending: [] };
+      const running = [
+        ...(android.running || []).map((row) => ({ ...row, platform: 'android' })),
+        ...(ios.running || []).map((simulator) => ({
+          platform: 'ios',
+          udid: simulator.udid,
+          name: simulator.name,
+          serial: simulator.udid,
+          state: 'booted',
+          kind: 'ios',
+          uptimeSeconds: null,
+          version: simulator.version,
+        })),
+      ];
+      const pendingAvds = android.avds?.pending || [];
+      const pendingIos = ios.pending || [];
+      const hasContent = running.length > 0 || pendingAvds.length > 0 || pendingIos.length > 0;
+      const limit = (key, total) => (expanded[key] ? total : Math.min(2, total));
+      const toggle = (key) => setExpanded((current) => ({ ...current, [key]: !current[key] }));
+      const more = (key, total, unit) =>
+        total > 2
+          ? h('button', {
+              key: `more-${key}`,
+              type: 'button',
+              className: 'dd-picker-more',
+              onClick: () => toggle(key),
+            },
+              h('span', null, expanded[key] ? t.menuCollapse : `${t.menuAll} ${total} ${unit}`),
+              h(Icon, { name: 'chevron', size: 9 }),
+            )
+          : null;
+
+      const keyOf = (row) => (row.platform === 'ios' ? `ios-${row.udid}` : `android-${row.serial || row.pid}`);
+      const kindOf = (row) => (row.platform === 'ios' ? t.menuIosEmulator : row.kind === '真机' ? t.menuReal : t.menuEmulator);
+      const detailOf = (row) => {
+        if (row.platform === 'ios') {
+          return `${t.menuIosEmulator}${row.version ? ` · iOS ${row.version}` : ''}`;
+        }
+        if (row.state === 'starting') return `${t.menuEmulator} · ${t.menuStarting}`;
+        if (row.kind === '真机') return `${t.menuReal} · ${row.serial}`;
+        const uptime = row.uptimeSeconds !== null && row.uptimeSeconds !== undefined
+          ? formatDuration(row.uptimeSeconds, t)
+          : row.serial;
+        return `${t.menuEmulator} · ${uptime}`;
+      };
+      const openRow = (row) => {
+        if (row.platform === 'ios') {
+          void onOpenIos(row);
+          return;
+        }
+        if (!row.serial) {
+          onNotice(t.menuStartingWait);
+          return;
+        }
+        onOpenAndroid(row);
+      };
+
+      return h('div', {
+        ref: menuRef,
+        className: 'dd-picker',
+        style: {
+          top: rect.top,
+          right: rect.right,
+          maxHeight: `calc(100vh - ${Math.max(120, rect.top + 12)}px)`,
+        },
+      },
+        h('div', { className: 'dd-picker-scroll' },
+          h('div', { className: 'dd-picker-section' },
+            h('span', null, t.menuRunning),
+            h('span', null, String(running.length)),
+          ),
+          running.length === 0
+            ? h('div', { className: 'dd-picker-empty', style: { padding: '10px 12px', textAlign: 'left' } }, t.menuNoOnline)
+            : h('div', null,
+                running.slice(0, limit('running', running.length)).map((row) => h('div', {
+                  key: keyOf(row),
+                  className: 'dd-picker-row',
+                },
+                  h('button', {
+                    type: 'button',
+                    className: 'dd-picker-main',
+                    title: row.platform === 'ios' ? t.menuOpenSimulator : t.menuOpenMirror,
+                    onClick: () => openRow(row),
+                  },
+                    h('div', { className: 'dd-picker-line' },
+                      h('span', {
+                        style: {
+                          display: 'inline-flex',
+                          flex: 'none',
+                          color: row.platform === 'android' ? '#10b981' : 'var(--dsw-alias-label-secondary)',
+                        },
+                      }, h(Icon, { name: 'phone', size: 11 })),
+                      h('span', { className: 'dd-picker-name' }, row.name),
+                      h('span', {
+                        className: 'dd-picker-status',
+                        'data-state': row.state === 'booted' ? 'booted' : 'starting',
+                      }, row.state === 'booted' ? t.menuReady : t.menuStarting),
+                    ),
+                    h('div', { className: 'dd-picker-detail' }, detailOf(row)),
+                  ),
+                  row.platform === 'android' && row.serial && h('button', {
+                    type: 'button',
+                    className: 'dd-picker-icon',
+                    title: t.menuOpenMirror,
+                    onClick: () => onOpenAndroid(row),
+                  }, h(Icon, { name: 'monitorplay', size: 12 })),
+                  row.platform === 'ios' && h('button', {
+                    type: 'button',
+                    className: 'dd-picker-icon',
+                    title: t.menuOpenSimulator,
+                    onClick: () => void onOpenIos(row),
+                  }, h(Icon, { name: 'external', size: 12 })),
+                  (row.platform === 'ios' || row.kind !== '真机') && h('button', {
+                    type: 'button',
+                    className: 'dd-picker-icon',
+                    'data-danger': 'true',
+                    title: t.menuStop,
+                    disabled: Boolean(stopping),
+                    onClick: () => void onStop(row),
+                  }, stopping === keyOf(row)
+                    ? h('span', { className: 'dd-picker-spinner' })
+                    : h(Icon, { name: 'power', size: 12 })),
+                )),
+                more('running', running.length, t.menuDeviceUnit),
+              ),
+
+          android.avds?.available && pendingAvds.length > 0 && h(Fragment, { key: 'android-section' },
+            h('div', { className: 'dd-picker-section' },
+              h('span', null, t.menuAndroidEmulators),
+            ),
+            h('div', null,
+              pendingAvds.slice(0, limit('android', pendingAvds.length)).map((name) => h('div', {
+                key: name,
+                className: 'dd-picker-row',
+              },
+                h('div', { className: 'dd-picker-main', style: { cursor: 'default' } },
+                  h('div', { className: 'dd-picker-name' }, name),
+                  h('div', { className: 'dd-picker-detail' }, t.menuNotStarted),
+                ),
+                h('button', {
+                  type: 'button',
+                  className: 'dd-picker-start',
+                  disabled: Boolean(launching),
+                  onClick: () => void onStartAvd(name),
+                },
+                  launching === `avd-${name}`
+                    ? h('span', { className: 'dd-picker-spinner' })
+                    : h(Icon, { name: 'play', size: 9 }),
+                  h('span', null, launching === `avd-${name}` ? t.menuStartingBtn : t.menuStart),
+                ),
+              )),
+              more('android', pendingAvds.length, t.menuItemUnit),
+            ),
+          ),
+
+          ios.available && pendingIos.length > 0 && h(Fragment, { key: 'ios-section' },
+            h('div', { className: 'dd-picker-section' },
+              h('span', null, t.menuIosEmulators),
+            ),
+            h('div', null,
+              pendingIos.slice(0, limit('ios', pendingIos.length)).map((simulator) => h('div', {
+                key: simulator.udid,
+                className: 'dd-picker-row',
+              },
+                h('div', { className: 'dd-picker-main', style: { cursor: 'default' } },
+                  h('div', { className: 'dd-picker-name' }, simulator.name),
+                  h('div', { className: 'dd-picker-detail' },
+                    `${t.menuShutdown}${simulator.version ? ` · iOS ${simulator.version}` : ''}`,
+                  ),
+                ),
+                h('button', {
+                  type: 'button',
+                  className: 'dd-picker-start',
+                  disabled: Boolean(launching),
+                  onClick: () => void onStartIos(simulator),
+                },
+                  launching === `ios-${simulator.udid}`
+                    ? h('span', { className: 'dd-picker-spinner' })
+                    : h(Icon, { name: 'play', size: 9 }),
+                  h('span', null, launching === `ios-${simulator.udid}` ? t.menuStartingBtn : t.menuStart),
+                ),
+              )),
+              more('ios', pendingIos.length, t.menuDeviceUnit),
+            ),
+          ),
+
+          !hasContent && h('div', { className: 'dd-picker-empty' },
+            t.menuEmpty,
+            h('br', null),
+            t.menuEmptyHint,
+          ),
+
+          inventory?.adb?.available === false && h('div', { className: 'dd-picker-notice' },
+            inventory.adb.error || t.adbMissing,
+          ),
+        ),
+
+        notice && h('div', { className: 'dd-picker-notice' }, notice),
+
+        h('div', { className: 'dd-picker-wifi' },
+          h('div', { className: 'dd-picker-wifi-row' },
+            h(Icon, { name: 'wifi', size: 12 }),
+            h('input', {
+              className: 'dd-picker-input',
+              value: wifiAddress,
+              placeholder: t.menuWifiPlaceholder,
+              spellCheck: false,
+              onChange: (event) => setWifiAddress(event.target.value),
+              onKeyDown: (event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  void onConnectWifi();
+                }
+              },
+            }),
+            h('button', {
+              type: 'button',
+              className: 'dd-picker-start',
+              disabled: !wifiAddress.trim() || wifiBusy,
+              onClick: () => void onConnectWifi(),
+            }, wifiBusy ? t.menuConnecting : t.menuConnect),
+            h('button', {
+              type: 'button',
+              className: 'dd-picker-icon',
+              title: t.menuRefresh,
+              onClick: () => void onRefresh(),
+            }, h(Icon, { name: 'refresh', size: 12 })),
+          ),
+          wifiResult && h('div', {
+            className: 'dd-picker-result',
+            'data-ok': wifiResult.ok ? 'true' : 'false',
+          }, wifiResult.text),
+        ),
+      );
+    }
+
+    function makeLauncher(ctx) {
+      return function DeviceMirrorLauncher(props) {
+        const [open, setOpen] = useState(shared.open);
+        const [menuOpen, setMenuOpen] = useState(false);
+        const [menuRect, setMenuRect] = useState(null);
+        const [inventory, setInventory] = useState(null);
+        const [deviceCount, setDeviceCount] = useState(0);
+        const [menuNotice, setMenuNotice] = useState('');
+        const [launching, setLaunching] = useState(null);
+        const [stopping, setStopping] = useState(null);
+        const [wifiAddress, setWifiAddress] = useState('');
+        const [wifiBusy, setWifiBusy] = useState(false);
+        const [wifiResult, setWifiResult] = useState(null);
+        const t = useCopy(ctx);
+        const currentDraft = props.useInput((state) => state?.draft || '');
+        const buttonRef = useRef(null);
+        const menuRef = useRef(null);
+
+        const reloadInventory = useCallback(async () => {
+          try {
+            const data = await apiJson('/inventory');
+            setInventory(data);
+            const count =
+              (Array.isArray(data.android?.running) ? data.android.running.length : 0) +
+              (Array.isArray(data.ios?.running) ? data.ios.running.length : 0);
+            setDeviceCount(count);
+          } catch (error) {
+            setInventory((previous) => previous || {
+              adb: { available: false, error: error.message },
+              android: { running: [], avds: { available: false, items: [], pending: [], message: error.message } },
+              ios: { available: false, message: error.message, running: [], pending: [] },
+            });
+          }
+        }, []);
+
+        useEffect(() => {
+          void reloadInventory();
+          const timer = window.setInterval(() => void reloadInventory(), menuOpen ? 5000 : 15000);
+          return () => window.clearInterval(timer);
+        }, [reloadInventory, menuOpen]);
+
+        const togglePanel = useCallback(() => {
+          setMenuOpen(false);
+          setOpen((value) => {
+            const next = !value;
+            shared.open = next;
+            saveStore();
+            return next;
+          });
+        }, []);
+
+        useEffect(() => {
+          const onKeyDown = (event) => {
+            if (!event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
+            if (event.repeat) return;
+            if (String(event.key).toLowerCase() !== 'm') return;
+            event.preventDefault();
+            event.stopPropagation();
+            togglePanel();
+          };
+          window.addEventListener('keydown', onKeyDown, true);
+          return () => window.removeEventListener('keydown', onKeyDown, true);
+        }, [togglePanel]);
+
+        useEffect(() => {
+          if (!menuOpen) return undefined;
+          const onPointerDown = (event) => {
+            if (menuRef.current?.contains(event.target) || buttonRef.current?.contains(event.target)) return;
+            setMenuOpen(false);
+          };
+          const onKeyDown = (event) => {
+            if (event.key === 'Escape') setMenuOpen(false);
+          };
+          document.addEventListener('pointerdown', onPointerDown, true);
+          window.addEventListener('keydown', onKeyDown);
+          return () => {
+            document.removeEventListener('pointerdown', onPointerDown, true);
+            window.removeEventListener('keydown', onKeyDown);
+          };
+        }, [menuOpen]);
+
+        useEffect(() => {
+          if (!menuOpen) return undefined;
+          const close = () => setMenuOpen(false);
+          window.addEventListener('resize', close);
+          return () => window.removeEventListener('resize', close);
+        }, [menuOpen]);
+
+        const openMenu = () => {
+          if (menuOpen) {
+            setMenuOpen(false);
+            return;
+          }
+          const rect = buttonRef.current?.getBoundingClientRect();
+          if (rect) {
+            setMenuRect({
+              top: Math.round(rect.bottom + 6),
+              right: Math.max(8, Math.round(window.innerWidth - rect.right)),
+            });
+          }
+          setMenuOpen(true);
+          setMenuNotice('');
+          setWifiResult(null);
+          if (open) {
+            setOpen(false);
+            shared.open = false;
+            saveStore();
+          }
+          void reloadInventory();
+        };
+
+        const openAndroid = (row) => {
+          if (!row.serial) {
+            setMenuNotice(t.menuStartingWait);
+            return;
+          }
+          shared.serial = row.serial;
+          shared.open = true;
+          saveStore();
+          setOpen(true);
+          setMenuOpen(false);
+        };
+
+        const openIos = async (row) => {
+          try {
+            const result = await postJson('/ios/open', { udid: row.udid });
+            setMenuNotice(result.message || t.menuIosUnsupported);
+          } catch (error) {
+            setMenuNotice(error.message);
+          }
+        };
+
+        const startAvd = async (name) => {
+          if (launching) return;
+          const key = `avd-${name}`;
+          setLaunching(key);
+          setMenuNotice('');
+          try {
+            const result = await postJson('/emulator/start', { name });
+            setMenuNotice(result.message || t.menuStartingBtn);
+          } catch (error) {
+            setMenuNotice(error.message);
+          } finally {
+            window.setTimeout(() => setLaunching((current) => (current === key ? null : current)), 2500);
+            void reloadInventory();
+          }
+        };
+
+        const startIos = async (simulator) => {
+          if (launching) return;
+          const key = `ios-${simulator.udid}`;
+          setLaunching(key);
+          setMenuNotice('');
+          try {
+            const result = await postJson('/ios/boot', { udid: simulator.udid });
+            setMenuNotice(result.message || t.menuStartingBtn);
+          } catch (error) {
+            setMenuNotice(error.message);
+          } finally {
+            window.setTimeout(() => setLaunching((current) => (current === key ? null : current)), 2500);
+            void reloadInventory();
+          }
+        };
+
+        const stopRow = async (row) => {
+          if (stopping) return;
+          const key = row.platform === 'ios' ? `ios-${row.udid}` : `android-${row.serial || row.pid}`;
+          setStopping(key);
+          try {
+            const result = row.platform === 'ios'
+              ? await postJson('/ios/shutdown', { udid: row.udid })
+              : await postJson('/emulator/stop', { serial: row.serial, pid: row.pid });
+            setMenuNotice(result.message || t.menuStopRequested);
+          } catch (error) {
+            setMenuNotice(error.message);
+          } finally {
+            setStopping(null);
+            window.setTimeout(() => void reloadInventory(), 600);
+          }
+        };
+
+        const connectWifi = async () => {
+          const address = wifiAddress.trim();
+          if (!address || wifiBusy) return;
+          setWifiBusy(true);
+          setWifiResult(null);
+          try {
+            const result = await postJson('/wifi/connect', { address });
+            setWifiResult({ ok: Boolean(result.success), text: result.message });
+            if (result.success) setWifiAddress('');
+          } catch (error) {
+            setWifiResult({ ok: false, text: error.message });
+          } finally {
+            setWifiBusy(false);
+            void reloadInventory();
+          }
+        };
+
+        const title = deviceCount > 0
+          ? `设备 · ${deviceCount} ${t.menuOnline}`
+          : `设备 · ${t.menuNoDevice}`;
+
+        return h(Fragment, null,
+          h('style', { 'data-dsh-device-deck': '' }, CSS),
+          h('button', {
+            ref: buttonRef,
+            type: 'button',
+            className: 'dd-launcher',
+            title,
+            'aria-label': t.title,
+            'aria-keyshortcuts': 'Control+M',
+            'aria-expanded': menuOpen,
+            'data-active': menuOpen || open ? 'true' : 'false',
+            'data-count': deviceCount > 0 ? 'true' : 'false',
+            onClick: openMenu,
+          },
+            h(LauncherIcon, { size: 16 }),
+            deviceCount > 0 && h('span', { className: 'dd-launcher-count' }, deviceCount > 99 ? '99+' : String(deviceCount)),
+          ),
+          open
+            ? ReactDOM.createPortal(
+                h(Panel, {
+                  ctx,
+                  sessionId: props.sessionId,
+                  inputActions: props.inputActions,
+                  currentDraft,
+                  onClose: () => {
+                    shared.open = false;
+                    saveStore();
+                    setOpen(false);
+                  },
+                }),
+                document.body,
+              )
+            : null,
+          menuOpen && menuRect
+            ? ReactDOM.createPortal(
+                h(DevicePicker, {
+                  inventory,
+                  rect: menuRect,
+                  menuRef,
+                  t,
+                  onOpenAndroid: openAndroid,
+                  onOpenIos: openIos,
+                  onStartAvd: startAvd,
+                  onStartIos: startIos,
+                  onStop: stopRow,
+                  onRefresh: reloadInventory,
+                  onNotice: setMenuNotice,
+                  launching,
+                  stopping,
+                  wifiAddress,
+                  setWifiAddress,
+                  onConnectWifi: connectWifi,
+                  wifiBusy,
+                  wifiResult,
+                  notice: menuNotice,
+                }),
+                document.body,
+              )
+            : null,
+        );
+      };
+    }
+
+    function Panel({ ctx, sessionId, inputActions, currentDraft, onClose }) {
+      const t = useCopy(ctx);
+      const [devices, setDevices] = useState([]);
+      const [adb, setAdb] = useState(null);
+      const [loadingDevices, setLoadingDevices] = useState(true);
+      const [serial, setSerial] = useState(shared.serial || '');
+      const [status, setStatus] = useState('connecting');
+      const [error, setError] = useState('');
+      const [videoSize, setVideoSize] = useState({ width: 1080, height: 2400 });
+      const [shots, setShots] = useState([]);
+      const [stripOpen, setStripOpen] = useState(false);
+      const [inputOpen, setInputOpen] = useState(false);
+      const [linkOpen, setLinkOpen] = useState(false);
+      const [text, setText] = useState('');
+      const [url, setUrl] = useState('');
+      const [notice, setNotice] = useState('');
+      const [busy, setBusy] = useState(false);
+      const [sending, setSending] = useState(false);
+      const [nonce, setNonce] = useState(0);
+      const [offset, setOffset] = useState(shared.offset || { x: 0, y: 0 });
+      const [switcherOpen, setSwitcherOpen] = useState(false);
+      const [ripple, setRipple] = useState(null);
+      const [frameWidth, setFrameWidth] = useState(360);
+
+      const canvasRef = useRef(null);
+      const viewportRef = useRef(null);
+      const ctx2dRef = useRef(null);
+      const pointerRef = useRef(null);
+      const retryRef = useRef(0);
+      const dragRef = useRef(null);
+      const menuRef = useRef(null);
+      const frameRef = useRef(null);
+
+      const device = devices.find((item) => item.serial === serial);
+      const deviceName = device?.model || (serial ? serial : 'Android');
+      const onlineDevices = devices.filter((item) => item.state === 'device');
+      const selectedShot = shots.find((item) => item.selected) || null;
+
+      const flash = useCallback((message) => {
+        setNotice(message);
+      }, []);
+
+      useEffect(() => {
+        if (!notice) return undefined;
+        const timer = window.setTimeout(() => setNotice(''), 3200);
+        return () => window.clearTimeout(timer);
+      }, [notice]);
+
+      useEffect(() => {
+        if (!serial) return;
+        shared.serial = serial;
+        saveStore();
+      }, [serial]);
+
+      useEffect(() => {
+        retryRef.current = 0;
+      }, [serial]);
+
+      const refreshDevices = useCallback(async () => {
+        try {
+          const data = await apiJson('/devices');
+          setAdb(data.adb || null);
+          const list = Array.isArray(data.devices) ? data.devices : [];
+          setDevices(list);
+          setSerial((previous) => {
+            const online = list.filter((item) => item.state === 'device');
+            if (previous && online.some((item) => item.serial === previous)) return previous;
+            return online[0]?.serial || '';
+          });
+        } catch (fetchError) {
+          setAdb({ available: false, error: fetchError.message });
+          setDevices([]);
+        } finally {
+          setLoadingDevices(false);
+        }
+      }, []);
+
+      useEffect(() => {
+        void refreshDevices();
+        const timer = window.setInterval(() => void refreshDevices(), 10_000);
+        return () => window.clearInterval(timer);
+      }, [refreshDevices]);
+
+      useLayoutEffect(() => {
+        const frame = frameRef.current;
+        if (!frame) return undefined;
+        const measure = () => {
+          const height = frame.clientHeight;
+          if (height <= 0) return;
+          const usable = height - HEADER_HEIGHT - (stripOpen ? STRIP_HEIGHT : 0);
+          if (usable <= 0) return;
+          const aspect = videoSize.width / Math.max(1, videoSize.height);
+          const maxWidth = Math.max(260, Math.min(520, window.innerWidth - 80));
+          const next = Math.max(260, Math.min(maxWidth, Math.round(usable * aspect)));
+          setFrameWidth((previous) => (Math.abs(previous - next) <= 1 ? previous : next));
+        };
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(frame);
+        window.addEventListener('resize', measure);
+        return () => {
+          observer.disconnect();
+          window.removeEventListener('resize', measure);
+        };
+      }, [videoSize.width, videoSize.height, stripOpen]);
+
+      const refreshShots = useCallback(async () => {
+        if (!serial) {
+          setShots([]);
+          return;
+        }
+        try {
+          const data = await apiJson(`/screenshots?serial=${encodeURIComponent(serial)}`);
+          setShots(Array.isArray(data.items) ? data.items : []);
+        } catch {
+          /* history is best effort */
+        }
+      }, [serial]);
+
+      useEffect(() => {
+        void refreshShots();
+      }, [refreshShots]);
+
+      useEffect(() => {
+        if (shots.length === 0) setStripOpen(false);
+      }, [shots.length]);
+
+      useEffect(() => {
+        if (!switcherOpen) return undefined;
+        const onPointerDown = (event) => {
+          if (menuRef.current?.contains(event.target)) return;
+          setSwitcherOpen(false);
+        };
+        document.addEventListener('pointerdown', onPointerDown, true);
+        return () => document.removeEventListener('pointerdown', onPointerDown, true);
+      }, [switcherOpen]);
+
+      useEffect(() => {
+        if (!serial) {
+          setStatus('offline');
+          setError('');
+          return undefined;
+        }
+        if (typeof VideoDecoder === 'undefined') {
+          setStatus('error');
+          setError('当前浏览器不支持 WebCodecs 视频解码。');
+          return undefined;
+        }
+
+        const controller = new AbortController();
+        let cancelled = false;
+        let decoder = null;
+        let configured = false;
+        let pendingConfig = null;
+        let firstFrame = false;
+        let timestamp = 0;
+        let metaSize = null;
+        const watchdog = window.setTimeout(() => {
+          if (cancelled || firstFrame) return;
+          setStatus('error');
+          setError('长时间未收到画面数据。请确认设备在线。');
+          controller.abort();
+        }, 12_000);
+
+        setStatus('connecting');
+        setError('');
+
+        const ensureDecoder = (codec, width, height) => {
+          if (decoder !== null) return decoder;
+          decoder = new VideoDecoder({
+            output: (frame) => {
+              if (cancelled) {
+                frame.close();
+                return;
+              }
+              const canvas = canvasRef.current;
+              if (!canvas) {
+                frame.close();
+                return;
+              }
+              if (canvas.width !== frame.displayWidth || canvas.height !== frame.displayHeight) {
+                canvas.width = frame.displayWidth;
+                canvas.height = frame.displayHeight;
+              }
+              try {
+                if (!ctx2dRef.current) {
+                  ctx2dRef.current = canvas.getContext('2d', { alpha: false, desynchronized: true });
+                }
+                ctx2dRef.current.drawImage(frame, 0, 0);
+              } finally {
+                frame.close();
+              }
+              if (!firstFrame) {
+                firstFrame = true;
+                retryRef.current = 0;
+                window.clearTimeout(watchdog);
+                setStatus('live');
+                setError('');
+                if (width && height && (width !== videoSize.width || height !== videoSize.height)) {
+                  setVideoSize({ width, height });
+                }
+              }
+            },
+            error: (decodeError) => {
+              if (cancelled) return;
+              setStatus('error');
+              setError(`解码失败：${decodeError.message}`);
+            },
+          });
+          return decoder;
+        };
+
+        const handleFrame = (type, flags, payload) => {
+          if (cancelled) return;
+          if (type === T_META) {
+            try {
+              const meta = JSON.parse(new TextDecoder().decode(payload));
+              if (meta.width && meta.height) {
+                metaSize = { width: meta.width, height: meta.height };
+                setVideoSize({ width: meta.width, height: meta.height });
+              }
+              if (meta.codec !== 'h264') {
+                setStatus('error');
+                setError(`暂不支持 ${String(meta.codec).toUpperCase()} 视频编码。`);
+                controller.abort();
+              }
+            } catch {
+              /* ignore malformed metadata */
+            }
+            return;
+          }
+          if (type === T_CONFIG) {
+            pendingConfig = payload.slice();
+            try {
+              const codec = avcCodecString(payload);
+              const instance = ensureDecoder(codec, metaSize?.width, metaSize?.height);
+              instance.configure({
+                codec,
+                optimizeForLatency: true,
+                hardwareAcceleration: 'no-preference',
+              });
+              configured = true;
+            } catch (configureError) {
+              setStatus('error');
+              setError(`解码器初始化失败：${configureError.message}`);
+            }
+            return;
+          }
+          if (type === T_DATA) {
+            if (decoder === null || !configured) return;
+            try {
+              let data = payload;
+              if (pendingConfig !== null) {
+                data = concatBytes(pendingConfig, payload);
+                pendingConfig = null;
+              }
+              timestamp += 1000;
+              decoder.decode(new EncodedVideoChunk({
+                type: (flags & 1) !== 0 ? 'key' : 'delta',
+                timestamp,
+                data,
+              }));
+            } catch {
+              /* skip a frame the decoder cannot take */
+            }
+            return;
+          }
+          if (type === T_ERROR) {
+            try {
+              const info = JSON.parse(new TextDecoder().decode(payload));
+              setStatus('error');
+              setError(info?.message || t.streamError);
+            } catch {
+              setStatus('error');
+              setError(t.streamError);
+            }
+            controller.abort();
+            return;
+          }
+          if (type === T_END) {
+            setStatus((previous) => (previous === 'live' ? 'offline' : previous));
+          }
+        };
+
+        const readStream = async () => {
+          try {
+            const response = await fetch(
+              `${API}/stream?serial=${encodeURIComponent(serial)}&_=${Date.now()}`,
+              { signal: controller.signal, cache: 'no-store' },
+            );
+            if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`);
+            const reader = response.body.getReader();
+            let buffer = new Uint8Array(0);
+            while (!cancelled) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              buffer = concatBytes(buffer, value);
+              let offsetInBuffer = 0;
+              while (buffer.length - offsetInBuffer >= 6) {
+                const type = buffer[offsetInBuffer];
+                const flags = buffer[offsetInBuffer + 1];
+                const length =
+                  (buffer[offsetInBuffer + 2] << 24) |
+                  (buffer[offsetInBuffer + 3] << 16) |
+                  (buffer[offsetInBuffer + 4] << 8) |
+                  buffer[offsetInBuffer + 5];
+                if (buffer.length - offsetInBuffer - 6 < length) break;
+                const payload = buffer.slice(offsetInBuffer + 6, offsetInBuffer + 6 + length);
+                handleFrame(type, flags, payload);
+                offsetInBuffer += 6 + length;
+              }
+              buffer = offsetInBuffer > 0 ? buffer.slice(offsetInBuffer) : buffer;
+            }
+            if (!cancelled) {
+              const wasLive = firstFrame;
+              setStatus((previous) => (previous === 'live' ? 'offline' : 'error'));
+              setError(wasLive ? t.disconnected : t.streamError);
+            }
+          } catch (streamError) {
+            if (cancelled || controller.signal.aborted) return;
+            setStatus('error');
+            setError(streamError?.message || t.streamError);
+            if (retryRef.current < 3) {
+              retryRef.current += 1;
+              window.setTimeout(() => {
+                if (!cancelled) setNonce((value) => value + 1);
+              }, 1200 * retryRef.current);
+            }
+          }
+        };
+
+        void readStream();
+
+        return () => {
+          cancelled = true;
+          controller.abort();
+          window.clearTimeout(watchdog);
+          if (decoder !== null && decoder.state !== 'closed') {
+            try {
+              decoder.close();
+            } catch {
+              /* ignore */
+            }
+          }
+          decoder = null;
+          ctx2dRef.current = null;
+          if (canvasRef.current) {
+            canvasRef.current.width = 0;
+            canvasRef.current.height = 0;
+          }
+        };
+      }, [serial, nonce]);
+
+      const ratioFromEvent = useCallback((clientX, clientY) => {
+        const viewport = viewportRef.current;
+        if (!viewport) return null;
+        const rect = viewport.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return null;
+        const aspect = videoSize.width / videoSize.height;
+        let width = rect.width;
+        let height = rect.height;
+        if (width / height > aspect) width = height * aspect;
+        else height = width / aspect;
+        const left = rect.left + (rect.width - width) / 2;
+        const top = rect.top + (rect.height - height) / 2;
+        const x = (clientX - left) / width;
+        const y = (clientY - top) / height;
+        return {
+          x: Math.max(0, Math.min(1, x)),
+          y: Math.max(0, Math.min(1, y)),
+          inside: x >= 0 && x <= 1 && y >= 0 && y <= 1,
+          left,
+          top,
+          width,
+          height,
+        };
+      }, [videoSize]);
+
+      const runAction = useCallback(async (action) => {
+        if (!serial) return;
+        setBusy(true);
+        try {
+          await postJson('/action', {
+            serial,
+            action: { ...action, frameWidth: videoSize.width, frameHeight: videoSize.height },
+          });
+        } catch (actionError) {
+          flash(actionError.message);
+        } finally {
+          setBusy(false);
+        }
+      }, [serial, busy, videoSize, flash]);
+
+      const handlePointerDown = (event) => {
+        if (status !== 'live' || event.button === 2) return;
+        const ratio = ratioFromEvent(event.clientX, event.clientY);
+        if (!ratio || !ratio.inside) return;
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+        pointerRef.current = {
+          x: ratio.x,
+          y: ratio.y,
+          clientX: event.clientX,
+          clientY: event.clientY,
+          time: Date.now(),
+        };
+      };
+
+      const handlePointerUp = (event) => {
+        const start = pointerRef.current;
+        pointerRef.current = null;
+        if (!start || status !== 'live') return;
+        if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+          event.currentTarget.releasePointerCapture(event.pointerId);
+        }
+        const ratio = ratioFromEvent(event.clientX, event.clientY);
+        if (!ratio) return;
+        const dx = event.clientX - start.clientX;
+        const dy = event.clientY - start.clientY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const duration = Date.now() - start.time;
+
+        if (distance < 12 && duration < 400) {
+          const viewport = viewportRef.current;
+          if (viewport) {
+            const rect = viewport.getBoundingClientRect();
+            const id = Date.now();
+            setRipple({ left: event.clientX - rect.left, top: event.clientY - rect.top, id });
+            window.setTimeout(() => setRipple((current) => (current?.id === id ? null : current)), 280);
+          }
+          void runAction({ type: 'tap', ratioX: ratio.x, ratioY: ratio.y });
+          return;
+        }
+        void runAction({
+          type: 'swipe',
+          ratioX: start.x,
+          ratioY: start.y,
+          ratioEndX: ratio.x,
+          ratioEndY: ratio.y,
+          duration: Math.max(120, Math.min(1000, duration)),
+        });
+      };
+
+      const capture = useCallback(async () => {
+        if (!serial || busy) return;
+        setBusy(true);
+        try {
+          const data = await postJson('/screenshot', { serial });
+          setShots((previous) => [data.shot, ...previous.map((item) => ({ ...item, selected: false }))]);
+          setStripOpen(true);
+          flash(t.shotSaved);
+        } catch (captureError) {
+          flash(captureError.message);
+        } finally {
+          setBusy(false);
+        }
+      }, [serial, busy, flash, t]);
+
+      const selectShot = useCallback(async (shot) => {
+        if (!shot || shot.selected) return;
+        try {
+          await postJson('/screenshots/select', { path: shot.path });
+          setShots((previous) => previous.map((item) => ({ ...item, selected: item.path === shot.path })));
+        } catch (selectError) {
+          flash(selectError.message);
+        }
+      }, [flash]);
+
+      const sendShot = useCallback(async (shot) => {
+        if (!shot || sending) return;
+        setSending(true);
+        try {
+          const response = await fetch(shotUrl(shot.path));
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const blob = await response.blob();
+          const fileUpload = ctx.fileUpload || ctx.get?.('fileUpload');
+          if (!fileUpload) throw new Error('上传服务不可用');
+          const upload = await fileUpload.uploadImage(sessionId, blob, 'image/png', shot.name);
+          const binding = ctx.sessions.binding(sessionId);
+          if (!binding) throw new Error('当前会话不可用');
+          const result = await binding.session.prompt([
+            { type: 'file', receiptId: upload.receiptId },
+            { type: 'text', text: `设备截图 · ${deviceName}` },
+          ], 'queue');
+          if (result && result.ok === false) {
+            throw new Error(result.error?.message || '发送失败');
+          }
+          flash(t.sent);
+        } catch {
+          try {
+            const mention = `设备截图：${shot.path}`;
+            inputActions?.setDraft?.(currentDraft ? `${currentDraft}\n${mention}` : mention);
+            flash(t.fallback);
+          } catch {
+            flash(t.fallback);
+          }
+        } finally {
+          setSending(false);
+        }
+      }, [ctx, sessionId, sending, deviceName, inputActions, currentDraft, flash, t]);
+
+      const sendText = () => {
+        const value = text.trim();
+        if (!value || busy) return;
+        void runAction({ type: 'text', text: value });
+        setText('');
+      };
+
+      const openUrl = () => {
+        const value = url.trim();
+        if (!value || busy) return;
+        void runAction({ type: 'openUrl', url: value });
+        setUrl('');
+        setLinkOpen(false);
+      };
+
+      const startDrag = (event) => {
+        if (event.target.closest?.('button') || event.target.closest?.('input') || event.target.closest?.('textarea')) return;
+        dragRef.current = {
+          clientX: event.clientX,
+          clientY: event.clientY,
+          x: offset.x,
+          y: offset.y,
+        };
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+      };
+
+      const moveDrag = (event) => {
+        const drag = dragRef.current;
+        if (!drag) return;
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        const nextX = Math.max(-width + 120, Math.min(width - 120, drag.x + event.clientX - drag.clientX));
+        const nextY = Math.max(-80, Math.min(height - 120, drag.y + event.clientY - drag.clientY));
+        setOffset({ x: nextX, y: nextY });
+      };
+
+      const endDrag = () => {
+        if (!dragRef.current) return;
+        dragRef.current = null;
+        shared.offset = offset;
+        saveStore();
+      };
+
+      const statusText = statusLabel(t, status);
+      const offline = status === 'error' || status === 'offline';
+      const isCompact = frameWidth < 330;
+
+      return h('div', {
+        className: 'dd-panel',
+        style: { transform: `translate(${offset.x}px, ${offset.y}px)` },
+        role: 'dialog',
+        'aria-label': t.title,
+      },
+        h('div', {
+          ref: frameRef,
+          className: 'dd-frame',
+          style: { width: `${frameWidth}px` },
+        },
+        h('div', {
+          className: 'dd-head',
+          onPointerDown: startDrag,
+          onPointerMove: moveDrag,
+          onPointerUp: endDrag,
+          onPointerCancel: endDrag,
+        },
+          h('div', { className: 'dd-head-left' },
+            h('div', { ref: menuRef, style: { position: 'relative' } },
+              h('button', {
+                type: 'button',
+                className: 'dd-device',
+                title: t.switchDevice,
+                'data-open': switcherOpen ? 'true' : 'false',
+                onClick: () => setSwitcherOpen((value) => !value),
+              },
+                h(Icon, { name: 'phone', size: 13 }),
+                h('span', { className: 'dd-device-name', style: { maxWidth: isCompact ? 92 : 136 } }, deviceName),
+                h(Icon, { name: 'chevron', size: 10 }),
+              ),
+              switcherOpen && h('div', { className: 'dd-menu' },
+                h('div', { className: 'dd-menu-title' }, t.switchDevice),
+                devices.length === 0
+                  ? h('div', { style: { padding: '8px 7px', color: '#a1a1aa', fontSize: '11.5px' } }, t.noDevice)
+                  : devices.map((item) => h('button', {
+                      key: item.serial,
+                      type: 'button',
+                      className: 'dd-menu-item',
+                      'data-active': item.serial === serial ? 'true' : 'false',
+                      disabled: item.state !== 'device',
+                      onClick: () => {
+                        setSwitcherOpen(false);
+                        if (item.state !== 'device') return;
+                        setSerial(item.serial);
+                      },
+                    },
+                      h(Icon, { name: 'phone', size: 12 }),
+                      h('span', null, item.model || item.serial),
+                      h('em', null, item.state === 'device' ? (item.isEmulator ? '模拟器' : '') : item.state),
+                    )),
+              ),
+            ),
+            h('span', { className: 'dd-status', 'data-status': status, 'data-compact': isCompact ? 'true' : 'false' },
+              h('span', { className: 'dd-dot' }),
+              !isCompact && h('span', null, statusText),
+            ),
+          ),
+          shots.length > 0 && h('button', {
+            type: 'button',
+            className: 'dd-icon-btn',
+            title: t.history,
+            'aria-label': t.history,
+            'data-active': stripOpen ? 'true' : 'false',
+            onClick: () => setStripOpen((value) => !value),
+          }, h(Icon, { name: 'history', size: 13 })),
+          h('button', {
+            type: 'button',
+            className: 'dd-icon-btn',
+            title: t.capture,
+            'aria-label': t.capture,
+            disabled: !serial || busy,
+            onClick: () => void capture(),
+          }, h(Icon, { name: 'camera', size: 13 })),
+          shots.length > 0 && h('button', {
+            type: 'button',
+            className: 'dd-icon-btn',
+            title: t.send,
+            'aria-label': t.send,
+            disabled: sending,
+            onClick: () => void sendShot(selectedShot || shots[0]),
+          }, h(Icon, { name: 'send', size: 13 })),
+          h('button', {
+            type: 'button',
+            className: 'dd-icon-btn',
+            title: t.refresh,
+            'aria-label': t.refresh,
+            onClick: () => {
+              retryRef.current = 0;
+              setNonce((value) => value + 1);
+            },
+          }, h(Icon, { name: 'refresh', size: 13 })),
+          h('button', {
+            type: 'button',
+            className: 'dd-icon-btn',
+            title: t.close,
+            'aria-label': t.close,
+            onClick: onClose,
+          }, h(Icon, { name: 'minimize', size: 13 })),
+        ),
+
+        h('div', { className: 'dd-body' },
+          h('div', { className: 'dd-rail' },
+            h('button', {
+              type: 'button',
+              title: t.back,
+              disabled: !serial || busy,
+              onClick: () => void runAction({ type: 'key', key: 'back' }),
+            }, h(Icon, { name: 'back', size: 14 })),
+            h('button', {
+              type: 'button',
+              title: t.home,
+              disabled: !serial || busy,
+              onClick: () => void runAction({ type: 'key', key: 'home' }),
+            }, h(Icon, { name: 'home', size: 14 })),
+            h('button', {
+              type: 'button',
+              title: t.text,
+              'data-active': inputOpen ? 'true' : 'false',
+              disabled: !serial,
+              onClick: () => {
+                setInputOpen((value) => !value);
+                setLinkOpen(false);
+              },
+            }, h(Icon, { name: 'keyboard', size: 14 })),
+            h('button', {
+              type: 'button',
+              title: t.link,
+              'data-active': linkOpen ? 'true' : 'false',
+              disabled: !serial,
+              onClick: () => {
+                setLinkOpen((value) => !value);
+                setInputOpen(false);
+              },
+            }, h(Icon, { name: 'link', size: 14 })),
+          ),
+
+          h('div', {
+            className: 'dd-viewport',
+            ref: viewportRef,
+            style: { borderRadius: stripOpen ? 0 : '0 0 10px 10px' },
+            onPointerDown: handlePointerDown,
+            onPointerUp: handlePointerUp,
+            onPointerCancel: () => { pointerRef.current = null; },
+            onContextMenu: (event) => event.preventDefault(),
+          },
+            h('canvas', { className: 'dd-canvas', ref: canvasRef }),
+
+            ripple && h('span', {
+              className: 'dd-ripple',
+              style: { left: `${ripple.left}px`, top: `${ripple.top}px` },
+            }),
+
+            !serial && h('div', { className: 'dd-overlay' },
+              h(Icon, { name: 'alert', size: 20 }),
+              h('strong', null, adb?.available === false ? t.adbMissing : t.noDevice),
+              h('p', null, adb?.available === false ? (adb.error || t.adbMissing) : t.noDeviceHint),
+              h('button', {
+                type: 'button',
+                className: 'dd-btn',
+                onClick: () => {
+                  setLoadingDevices(true);
+                  void refreshDevices();
+                },
+              }, h(Icon, { name: 'refresh', size: 12 }), t.refresh),
+            ),
+
+            serial && status === 'connecting' && h('div', { className: 'dd-overlay' },
+              h('span', { className: 'dd-spinner' }),
+              h('span', null, t.connectingHint),
+            ),
+
+            serial && offline && h('div', { className: 'dd-overlay' },
+              h(Icon, { name: 'alert', size: 20 }),
+              h('strong', null, status === 'offline' ? t.disconnected : t.streamError),
+              h('p', null, error || t.noDeviceHint),
+              h('button', {
+                type: 'button',
+                className: 'dd-btn',
+                onClick: () => {
+                  retryRef.current = 0;
+                  setNonce((value) => value + 1);
+                },
+              }, h(Icon, { name: 'refresh', size: 12 }), t.retry),
+            ),
+          ),
+        ),
+
+        stripOpen && h('div', { className: 'dd-strip' },
+          h('span', { className: 'dd-strip-label' }, t.screenshotStrip),
+          shots.length === 0
+            ? h('span', { style: { color: '#71717a', fontSize: '10.5px' } }, t.emptyShot)
+            : shots.map((shot) => h('button', {
+                key: shot.path,
+                type: 'button',
+                className: 'dd-thumb',
+                'data-selected': shot.selected ? 'true' : 'false',
+                title: shot.selected ? t.selected : shot.name,
+                onClick: () => void selectShot(shot),
+              }, h('img', { src: shotUrl(shot.path), alt: shot.name, draggable: false }))),
+        ),
+        ),
+
+        inputOpen && h('div', { className: 'dd-pop', style: { top: '46%' } },
+          h('div', { className: 'dd-pop-head' },
+            h('span', null, t.text),
+            h('button', { type: 'button', onClick: () => setInputOpen(false), title: t.close }, h(Icon, { name: 'close', size: 12 })),
+          ),
+          h('textarea', {
+            value: text,
+            autoFocus: true,
+            placeholder: t.enterText,
+            onChange: (event) => setText(event.target.value),
+            onKeyDown: (event) => {
+              if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+                event.preventDefault();
+                sendText();
+              }
+            },
+          }),
+          h('div', { className: 'dd-pop-foot' },
+            h('span', { className: 'dd-pop-hint' }, t.textHint),
+            h('button', { type: 'button', className: 'dd-send', disabled: !text.trim() || busy, onClick: sendText }, t.sendText),
+          ),
+        ),
+
+        linkOpen && h('div', { className: 'dd-pop', style: { top: '56%' } },
+          h('div', { className: 'dd-pop-head' },
+            h('span', null, t.link),
+            h('button', { type: 'button', onClick: () => setLinkOpen(false), title: t.close }, h(Icon, { name: 'close', size: 12 })),
+          ),
+          h('input', {
+            value: url,
+            autoFocus: true,
+            spellCheck: false,
+            placeholder: t.urlHint,
+            onChange: (event) => setUrl(event.target.value),
+            onKeyDown: (event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                openUrl();
+              }
+            },
+          }),
+          h('div', { className: 'dd-pop-foot' },
+            h('span', { className: 'dd-pop-hint' }, t.enterUrl),
+            h('button', { type: 'button', className: 'dd-send', disabled: !url.trim() || busy, onClick: openUrl }, t.open),
+          ),
+        ),
+
+        notice && h('div', { className: 'dd-notice' }, notice),
+      );
+    }
+
+    return {
+      inject: ['slots', 'sessions', 'fileUpload', 'locale'],
+      apply(ctx) {
+        const Launcher = makeLauncher(ctx);
+        ctx.slots.inject('conversation.session.header.utilities', () =>
+          ctx.slots.register({
+            name: 'conversation.session.header.utilities',
+            id: 'device-deck',
+            order: 10,
+          }, Launcher),
+        );
+      },
+    };
+  },
+});

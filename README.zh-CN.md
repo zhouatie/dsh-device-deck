@@ -1,0 +1,129 @@
+# 设备台（Device Deck）
+
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+设备台是 DeepSeek Harness 的插件，把设备查看与操作放进 Harness Web UI。
+
+它从 Android 设备镜像开始，后续会覆盖 Android、iOS 与 Web，并让 Agent 能够查看、操作与自动测试这些设备。
+
+> 状态：alpha（`0.1.0`）。Android 镜像可用。iOS / Web 镜像与 AI E2E 测试在路线图中。
+
+## 功能
+
+### 已实现
+
+- **会话头部设备菜单**：运行中的设备、未启动的 Android AVD、iOS 模拟器、无线 ADB 配对。
+- **Android 镜像**：scrcpy 视频流，页面内 WebCodecs 解码。
+- **反向控制**：点击、滑动、返回、主页、文本输入、打开链接或深链。
+- **Android AVD 管理**：列出 AVD、无窗口启动、停止，就绪后打开镜像。
+- **iOS 模拟器管理**：列出、启动、关闭，并打开 Simulator。暂不支持画面镜像。
+- **无线 ADB**：支持 `host` 或 `host:port`。
+- **截图**：保存当前画面、浏览最近截图、发送到当前对话。
+- **Agent 工具**：`device_screenshot` 返回选定截图。
+- **快捷键**：`Ctrl+M` 打开或关闭镜像。
+
+## 路线图
+
+- Web 页面预览与控制。
+- iOS 模拟器镜像。
+- AI E2E 测试：规划、操作、等待、断言。
+- 测试录制与回放。
+- 多设备同屏。
+
+路线图功能尚未实现，不代表当前可用。
+
+## 环境要求
+
+- 支持插件的 DeepSeek Harness。
+- Host 侧 Node.js 20 或更高版本。
+- Android：`adb`（Android platform-tools）。
+- AVD 管理：Android SDK 的 `emulator`。
+- iOS 模拟器：macOS 与 Xcode 命令行工具。
+
+插件已内置 `scrcpy-server` 3.3.3，无需单独安装 scrcpy。
+
+## 安装
+
+1. 克隆仓库：
+
+   ```bash
+   git clone https://github.com/zhouatie/dsh-device-deck.git
+   cd dsh-device-deck
+   ```
+
+2. 安装依赖：
+
+   ```bash
+   pnpm install
+   ```
+
+3. 在 Harness 中把本目录安装为本地 bundle。入口：**设置 → 插件**，或使用插件管理器传入本目录的绝对路径。
+
+4. 刷新一次 Harness 页面。
+
+本地目录安装是链接方式。请保留目录，并在依赖变化后重新执行 `pnpm install`。
+
+## 使用
+
+1. 打开一个会话。
+2. 点会话头部右上角的设备图标。
+3. 选择运行中的 Android 设备打开镜像，或启动未运行的 AVD。
+4. 镜像左侧操作列提供返回、主页、文本输入、打开链接。
+5. 标题栏提供截图、重连、收起。
+6. 选中截图后，发送到当前对话。
+
+无线 ADB 输入示例：
+
+```text
+192.168.1.102:5555
+```
+
+也可以只填主机名，默认补 `5555` 端口。
+
+## 实现说明
+
+- Host 侧注册 `/api/device-deck/*`，每台 Android 设备一个 scrcpy 会话。
+- 视频通过同源分块 HTTP 传输，页面用 WebCodecs 解码。
+- Client 侧注册到会话头部，渲染设备菜单与悬浮镜像。
+- 截图保存在 `~/.dsh/device-deck/screenshots`。每台设备保留最近 30 张，选定的截图不删除。
+- 插件不依赖云端服务。设备命令走本地 `adb` 或 `xcrun`。只有你主动发送时，截图才会进入当前对话。
+
+## 限制
+
+- 镜像仅支持 Android。
+- 仅 H.264。H.265 设备会提示错误。
+- 文本输入走 `adb shell input text`，仅支持 ASCII。
+- 同一时间只镜像一台设备。
+- iOS 模拟器可列表、启动、停止，但暂不支持镜像。
+- Web 设备暂不支持。
+
+## 开发
+
+```bash
+pnpm install
+pnpm check
+```
+
+`pnpm check` 使用 `node --check` 检查两个插件入口。
+
+目录：
+
+| 路径 | 用途 |
+| --- | --- |
+| `index.js` | Host 插件：路由、adb、scrcpy、截图、工具 |
+| `client.js` | Client 插件：头部菜单、镜像、WebCodecs |
+| `bin/scrcpy-server` | 内置 scrcpy server 3.3.3 |
+| `cordis.patch.yml` | Bundle patch |
+| `locale/` | 插件管理器的标题与描述 |
+
+提交 PR 前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+## 许可证
+
+插件代码：[MIT](LICENSE)。
+
+内置的 scrcpy server 使用 Apache-2.0。见 [LICENSE-scrcpy](LICENSE-scrcpy) 与 [NOTICE](NOTICE)。
+
+## English
+
+[README.md](README.md)
