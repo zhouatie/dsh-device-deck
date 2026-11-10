@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Add a **Recents** action to the mirror rail. It opens the Android overview
+  screen, so background apps can be swiped away.
 - Add **Device screenshot** to the composer's `+` menu. It opens a screenshot
   picker, and the chosen shot becomes a draft attachment in the composer.
 
@@ -16,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Remove the mirror rail's send action. Screenshots no longer send directly to
   the chat.
+
+### Fixed
+
+- Switching Sessions no longer remounts the mirror. The panel now lives in the
+  root-scoped `shell.overlay`, so the stream and canvas keep running.
 
 ## [0.3.0] - 2026-11-10
 

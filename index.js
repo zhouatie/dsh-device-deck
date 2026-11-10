@@ -617,6 +617,10 @@ function toAdbInputText(text) {
   );
 }
 
+function quoteForDeviceShell(value) {
+  return `'${String(value).replace(/'/g, `'\\''`)}'`;
+}
+
 const serialChains = new Map();
 
 function serializeAction(serial, task) {
@@ -651,7 +655,7 @@ async function executeAction(serial, action) {
         return { success: true };
       }
       case 'key': {
-        const keyMap = { back: 4, home: 3, power: 26, enter: 66, menu: 82, volumeup: 24, volumedown: 25 };
+        const keyMap = { back: 4, home: 3, recents: 187, power: 26, enter: 66, menu: 82, volumeup: 24, volumedown: 25 };
         const code = keyMap[String(action.key || '').toLowerCase()] || 4;
         await runAdb(['-s', serial, 'shell', 'input', 'keyevent', String(code)], { timeout: 5000 });
         return { success: true };
@@ -669,7 +673,7 @@ async function executeAction(serial, action) {
         const url = String(action.url || '').trim();
         if (!/^[a-z][a-z0-9+.-]*:/i.test(url)) throw new Error('链接需要带协议，例如 https:// 或 app://');
         await runAdb(
-          ['-s', serial, 'shell', 'am', 'start', '-a', 'android.intent.action.VIEW', '-d', url],
+          ['-s', serial, 'shell', `am start -a android.intent.action.VIEW -d ${quoteForDeviceShell(url)}`],
           { timeout: 8000 },
         );
         return { success: true };

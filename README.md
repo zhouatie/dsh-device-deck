@@ -19,8 +19,8 @@ Android, iOS, and Web devices, with the agent able to inspect and drive them.
 - **Android mirror.** scrcpy video decoded with WebCodecs in the page.
 - **Screen off.** The physical display turns off while the mirror is open and
   turns back on when the mirror closes.
-- **Direct control.** Tap, swipe, back, home, text input, and open URL or deep
-  link.
+- **Direct control.** Tap, swipe, back, home, recents, text input, and open URL
+  or deep link.
 - **Android AVD management.** List AVDs, start them headless, stop them, and
   open the mirror once they are ready.
 - **iOS simulator management.** List simulators, boot and shut down them, and
@@ -83,7 +83,7 @@ run `pnpm install` there after dependency changes.
 1. Open a Session.
 2. Click the device icon in the Session header, at the top right.
 3. Pick a running Android device to open its mirror, or start a stopped AVD.
-4. In the mirror, use the left rail for back, home, text, links, screenshot, history, reconnect, and close. History appears once a screenshot exists.
+4. In the mirror, use the left rail for back, home, recents, text, links, screenshot, history, reconnect, and close. History appears once a screenshot exists.
 5. Use the title bar for the device switcher, connection status, and drag handle.
 6. Open the input's `+` menu, choose **Device screenshot**, then pick a shot. The shot is added to the composer; add text before sending.
 

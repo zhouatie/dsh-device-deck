@@ -4,7 +4,7 @@ window.__ModuleLoader__.load({
     const React = require('react');
     const ReactDOM = require('react-dom');
     const h = React.createElement;
-    const { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } = React;
+    const { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } = React;
 
     const API = '/api/device-deck';
     const STORE_KEY = ['dsh-device-deck', 'state', 'v1'].join('.');
@@ -98,6 +98,7 @@ window.__ModuleLoader__.load({
         menuNoDevice: '没有设备在线，点击启动模拟器',
         railBack: '返回',
         railHome: '主页',
+        railRecents: '最近任务',
         railText: '输入',
         railLink: '链接',
         railFile: '文件',
@@ -187,6 +188,7 @@ window.__ModuleLoader__.load({
         menuNoDevice: 'No device online. Click to start an emulator.',
         railBack: 'Back',
         railHome: 'Home',
+        railRecents: 'Recents',
         railText: 'Text',
         railLink: 'Link',
         railFile: 'File',
@@ -215,6 +217,7 @@ window.__ModuleLoader__.load({
     }
 
     const shared = loadStore();
+    const openListeners = new Set();
 
     function saveStore() {
       try {
@@ -222,6 +225,23 @@ window.__ModuleLoader__.load({
       } catch {
         /* ignore */
       }
+    }
+
+    function setSharedOpen(next) {
+      if (shared.open === next) return;
+      shared.open = next;
+      saveStore();
+      for (const listener of openListeners) listener();
+    }
+
+    function useSharedOpen() {
+      return useSyncExternalStore(
+        (listener) => {
+          openListeners.add(listener);
+          return () => openListeners.delete(listener);
+        },
+        () => shared.open,
+      );
     }
 
     function currentCopy(ctx) {
@@ -509,6 +529,8 @@ window.__ModuleLoader__.load({
           return h('svg', common, h('path', { d: 'M15 5l-7 7 7 7' }));
         case 'home':
           return h('svg', common, h('path', { d: 'M4 11 12 4l8 7' }), h('path', { d: 'M6.5 10v9.5h11V10' }));
+        case 'recents':
+          return h('svg', common, h('rect', { x: 8, y: 3.5, width: 12.5, height: 12.5, rx: 2.2 }), h('rect', { x: 3.5, y: 8, width: 12.5, height: 12.5, rx: 2.2 }));
         case 'keyboard':
           return h('svg', common, h('rect', { x: 2.5, y: 6, width: 19, height: 12, rx: 2.2 }), h('path', { d: 'M6 10h1M10 10h1M14 10h1M18 10h.5M7 14h10' }));
         case 'link':
@@ -568,6 +590,9 @@ window.__ModuleLoader__.load({
       .dd-status[data-status="connecting"]{background:rgba(234,179,8,.12);color:#facc15;border-color:rgba(234,179,8,.2)}
       .dd-status[data-status="error"],.dd-status[data-status="offline"]{background:rgba(239,68,68,.12);color:#f87171;border-color:rgba(239,68,68,.2)}
       .dd-dot{width:4px;height:4px;border-radius:50%;background:currentColor}
+      .dd-head-right{display:flex;align-items:center;gap:2px;flex:none}
+      .dd-head-refresh{display:flex;align-items:center;justify-content:center;width:20px;height:20px;padding:0;border:0;border-radius:4px;background:transparent;color:#a1a1aa;cursor:pointer;transition:background .15s ease,color .15s ease}
+      .dd-head-refresh:hover{background:rgba(255,255,255,.1);color:#f4f4f5}
       .dd-body{position:relative;flex:1;min-height:0;display:flex}
       .dd-rail{position:absolute;right:calc(100% + 2px);top:50%;transform:translateY(-50%);width:32px;display:flex;flex-direction:column;background:#fff;border:1px solid #e3e3e8;border-right:0;border-radius:9px 0 0 9px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.06);pointer-events:auto;z-index:2}
       .dd-rail button{display:flex;align-items:center;justify-content:center;width:100%;height:38px;border:0;border-bottom:1px solid #f1f1f4;background:transparent;color:#63636b;cursor:pointer;transition:background .15s ease,color .15s ease}
@@ -935,9 +960,41 @@ window.__ModuleLoader__.load({
       );
     }
 
+    function makeMirrorHost(ctx) {
+      return function DeviceMirrorHost() {
+        const open = useSharedOpen();
+
+        useEffect(() => {
+          const onKeyDown = (event) => {
+            if (!event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
+            if (event.repeat) return;
+            if (String(event.key).toLowerCase() !== 'm') return;
+            event.preventDefault();
+            event.stopPropagation();
+            setSharedOpen(!shared.open);
+          };
+          window.addEventListener('keydown', onKeyDown, true);
+          return () => window.removeEventListener('keydown', onKeyDown, true);
+        }, []);
+
+        return h(Fragment, null,
+          h('style', { 'data-dsh-device-deck': '' }, CSS),
+          open
+            ? ReactDOM.createPortal(
+                h(Panel, {
+                  ctx,
+                  onClose: () => setSharedOpen(false),
+                }),
+                document.body,
+              )
+            : null,
+        );
+      };
+    }
+
     function makeLauncher(ctx) {
       return function DeviceMirrorLauncher(props) {
-        const [open, setOpen] = useState(shared.open);
+        const open = useSharedOpen();
         const [menuOpen, setMenuOpen] = useState(false);
         const [menuRect, setMenuRect] = useState(null);
         const [inventory, setInventory] = useState(null);
@@ -975,29 +1032,6 @@ window.__ModuleLoader__.load({
           const timer = window.setInterval(() => void reloadInventory(), menuOpen ? 5000 : 15000);
           return () => window.clearInterval(timer);
         }, [reloadInventory, menuOpen]);
-
-        const togglePanel = useCallback(() => {
-          setMenuOpen(false);
-          setOpen((value) => {
-            const next = !value;
-            shared.open = next;
-            saveStore();
-            return next;
-          });
-        }, []);
-
-        useEffect(() => {
-          const onKeyDown = (event) => {
-            if (!event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
-            if (event.repeat) return;
-            if (String(event.key).toLowerCase() !== 'm') return;
-            event.preventDefault();
-            event.stopPropagation();
-            togglePanel();
-          };
-          window.addEventListener('keydown', onKeyDown, true);
-          return () => window.removeEventListener('keydown', onKeyDown, true);
-        }, [togglePanel]);
 
         useEffect(() => {
           if (!menuOpen) return undefined;
@@ -1038,11 +1072,7 @@ window.__ModuleLoader__.load({
           setMenuOpen(true);
           setMenuNotice('');
           setWifiResult(null);
-          if (open) {
-            setOpen(false);
-            shared.open = false;
-            saveStore();
-          }
+          if (open) setSharedOpen(false);
           void reloadInventory();
         };
 
@@ -1052,9 +1082,8 @@ window.__ModuleLoader__.load({
             return;
           }
           shared.serial = row.serial;
-          shared.open = true;
           saveStore();
-          setOpen(true);
+          setSharedOpen(true);
           setMenuOpen(false);
         };
 
@@ -1138,7 +1167,6 @@ window.__ModuleLoader__.load({
           : `设备 · ${t.menuNoDevice}`;
 
         return h(Fragment, null,
-          h('style', { 'data-dsh-device-deck': '' }, CSS),
           h('button', {
             ref: buttonRef,
             type: 'button',
@@ -1154,20 +1182,6 @@ window.__ModuleLoader__.load({
             h(LauncherIcon, { size: 16 }),
             deviceCount > 0 && h('span', { className: 'dd-launcher-count' }, deviceCount > 99 ? '99+' : String(deviceCount)),
           ),
-          open
-            ? ReactDOM.createPortal(
-                h(Panel, {
-                  ctx,
-                  sessionId: props.sessionId,
-                  onClose: () => {
-                    shared.open = false;
-                    saveStore();
-                    setOpen(false);
-                  },
-                }),
-                document.body,
-              )
-            : null,
           shotPickerOpen && h(ShotPicker, {
             ctx,
             sessionId: props.sessionId,
@@ -1204,7 +1218,7 @@ window.__ModuleLoader__.load({
       };
     }
 
-    function Panel({ ctx, sessionId, onClose }) {
+    function Panel({ ctx, onClose }) {
       const t = useCopy(ctx);
       const [devices, setDevices] = useState([]);
       const [adb, setAdb] = useState(null);
@@ -1597,15 +1611,17 @@ window.__ModuleLoader__.load({
       }, [videoSize]);
 
       const runAction = useCallback(async (action) => {
-        if (!serial) return;
+        if (!serial) return false;
         setBusy(true);
         try {
           await postJson('/action', {
             serial,
             action: { ...action, frameWidth: videoSize.width, frameHeight: videoSize.height },
           });
+          return true;
         } catch (actionError) {
           flash(actionError.message);
+          return false;
         } finally {
           setBusy(false);
         }
@@ -1707,11 +1723,12 @@ window.__ModuleLoader__.load({
         }
       }, [flash]);
 
-      const sendText = () => {
+      const sendText = async () => {
         const value = text.trim();
         if (!value || busy) return;
-        void runAction({ type: 'text', text: value });
-        setText('');
+        setInputOpen(false);
+        const sent = await runAction({ type: 'text', text: value });
+        if (sent) setText((current) => (current === value ? '' : current));
       };
 
       const openUrl = () => {
@@ -1836,9 +1853,21 @@ window.__ModuleLoader__.load({
                     )),
               ),
             ),
-            h('span', { className: 'dd-status', 'data-status': status, 'data-compact': isCompact ? 'true' : 'false' },
-              h('span', { className: 'dd-dot' }),
-              !isCompact && h('span', null, statusText),
+            h('div', { className: 'dd-head-right' },
+              h('span', { className: 'dd-status', 'data-status': status, 'data-compact': isCompact ? 'true' : 'false' },
+                h('span', { className: 'dd-dot' }),
+                !isCompact && h('span', null, statusText),
+              ),
+              h('button', {
+                type: 'button',
+                className: 'dd-head-refresh',
+                title: t.railRefresh,
+                'aria-label': t.railRefresh,
+                onClick: () => {
+                  retryRef.current = 0;
+                  setNonce((value) => value + 1);
+                },
+              }, h(Icon, { name: 'refresh', size: 12 })),
             ),
           ),
         ),
@@ -1857,6 +1886,7 @@ window.__ModuleLoader__.load({
           h('div', { className: 'dd-rail' },
             railButton(t.railBack, 'back', () => void runAction({ type: 'key', key: 'back' }), { disabled: !serial || busy }),
             railButton(t.railHome, 'home', () => void runAction({ type: 'key', key: 'home' }), { disabled: !serial || busy }),
+            railButton(t.railRecents, 'recents', () => void runAction({ type: 'key', key: 'recents' }), { disabled: !serial || busy }),
             railButton(t.railText, 'keyboard', () => {
               setInputOpen((value) => !value);
               setLinkOpen(false);
@@ -1869,10 +1899,6 @@ window.__ModuleLoader__.load({
             h('div', { className: 'dd-rail-sep' }),
             shots.length > 0 && railButton(t.railHistory, 'history', () => setStripOpen((value) => !value), { active: stripOpen }),
             railButton(t.railCapture, 'camera', () => void capture(), { disabled: !serial || busy }),
-            railButton(t.railRefresh, 'refresh', () => {
-              retryRef.current = 0;
-              setNonce((value) => value + 1);
-            }),
             h('div', { className: 'dd-rail-sep' }),
             railButton(t.railClose, 'minimize', onClose),
           ),
@@ -1956,13 +1982,13 @@ window.__ModuleLoader__.load({
             onKeyDown: (event) => {
               if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
                 event.preventDefault();
-                sendText();
+                void sendText();
               }
             },
           }),
           h('div', { className: 'dd-pop-foot' },
             h('span', { className: 'dd-pop-hint' }, t.textHint),
-            h('button', { type: 'button', className: 'dd-send', disabled: !text.trim() || busy, onClick: sendText }, t.sendText),
+            h('button', { type: 'button', className: 'dd-send', disabled: !text.trim() || busy, onClick: () => void sendText() }, t.sendText),
           ),
         ),
 
@@ -2006,9 +2032,17 @@ window.__ModuleLoader__.load({
     }
 
     return {
-      inject: ['slots', 'sessions', 'locale'],
+      inject: ['slots', 'sessions', 'locale', 'conversation'],
       apply(ctx) {
         const Launcher = makeLauncher(ctx);
+        const MirrorHost = makeMirrorHost(ctx);
+        ctx.slots.inject('shell.overlay', () =>
+          ctx.slots.register({
+            name: 'shell.overlay',
+            id: 'device-deck-mirror',
+            order: 20,
+          }, MirrorHost),
+        );
         ctx.slots.inject('conversation.session.header.utilities', () =>
           ctx.slots.register({
             name: 'conversation.session.header.utilities',
