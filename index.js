@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { Adb, AdbServerClient } from '@yume-chan/adb';
 import { AdbServerNodeTcpConnector } from '@yume-chan/adb-server-node-tcp';
 import { AdbScrcpyClient, AdbScrcpyOptions3_3_3 } from '@yume-chan/adb-scrcpy';
+import { AndroidScreenPowerMode } from '@yume-chan/scrcpy';
 
 const execFileAsync = promisify(execFile);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -821,6 +822,7 @@ class StreamSession {
     this.destroyed = false;
     this.metadata = null;
     this.configPacket = null;
+    this.screenOff = false;
     this.gop = [];
     this.gopBytes = 0;
     this.gopComplete = false;
@@ -841,7 +843,10 @@ class StreamSession {
 
   unsubscribe(client) {
     this.clients.delete(client);
-    if (this.clients.size === 0 && !this.destroyed) this.scheduleIdle();
+    if (this.clients.size === 0 && !this.destroyed) {
+      void this.restoreScreen();
+      this.scheduleIdle();
+    }
   }
 
   scheduleIdle() {
@@ -873,7 +878,7 @@ class StreamSession {
 
     const options = new AdbScrcpyOptions3_3_3({
       audio: false,
-      control: false,
+      control: true,
       maxSize: 1080,
       sendFrameMeta: true,
       videoBitRate: 3_000_000,
@@ -901,6 +906,16 @@ class StreamSession {
       width: meta.width || 1080,
       height: meta.height || 1920,
     };
+
+    const controller = client.controller;
+    if (controller) {
+      try {
+        await controller.setScreenPowerMode(AndroidScreenPowerMode.Off);
+        this.screenOff = true;
+      } catch (error) {
+        console.warn('[device-deck] unable to turn the physical screen off', error);
+      }
+    }
 
     for (const subscriber of this.clients) this.sendMetaTo(subscriber);
     void this.consume(video.stream).catch((error) => {
@@ -997,6 +1012,18 @@ class StreamSession {
     this.broadcast(jsonFrame(T_ERROR, { message }));
   }
 
+  async restoreScreen() {
+    if (!this.screenOff || !this.scrcpyClient) return;
+    const controller = this.scrcpyClient.controller;
+    if (!controller) return;
+    try {
+      await controller.setScreenPowerMode(AndroidScreenPowerMode.Normal);
+      this.screenOff = false;
+    } catch {
+      /* keep the flag so destroy can retry */
+    }
+  }
+
   async destroy() {
     if (this.destroyed) return;
     this.destroyed = true;
@@ -1018,6 +1045,7 @@ class StreamSession {
     } catch {
       /* ignore */
     }
+    await this.restoreScreen();
     if (this.scrcpyClient) {
       try {
         await this.scrcpyClient.close();

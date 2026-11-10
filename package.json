@@ -1,6 +1,6 @@
 {
   "name": "dsh-device-deck",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Device mirror, emulator manager, and agent tools for DeepSeek Harness.",
   "type": "module",
   "license": "MIT",
@@ -56,7 +56,8 @@
   "dependencies": {
     "@yume-chan/adb": "2.6.3",
     "@yume-chan/adb-scrcpy": "2.3.2",
-    "@yume-chan/adb-server-node-tcp": "2.5.2"
+    "@yume-chan/adb-server-node-tcp": "2.5.2",
+    "@yume-chan/scrcpy": "2.3.0"
   },
   "dsh": {
     "bundle": {
