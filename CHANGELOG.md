@@ -5,6 +5,18 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Add **Device screenshot** to the composer's `+` menu. It opens a screenshot
+  picker, and the chosen shot becomes a draft attachment in the composer.
+
+### Removed
+
+- Remove the mirror rail's send action. Screenshots no longer send directly to
+  the chat.
+
 ## [0.3.0] - 2026-11-10
 
 ### Added

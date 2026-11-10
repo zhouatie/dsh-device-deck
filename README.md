@@ -28,8 +28,8 @@ Android, iOS, and Web devices, with the agent able to inspect and drive them.
 - **Wireless ADB.** Connect a device with `host` or `host:port`.
 - **File transfer.** Pick a file on the computer and push it to
   `/sdcard/Download/` on the selected device.
-- **Screenshots.** Save the current screen, browse the latest shots, and send a
-  shot to the current chat.
+- **Screenshots.** Save the current screen, browse the latest shots, and add a
+  shot to the composer from the input's `+` menu.
 - **Agent tool.** `device_screenshot` returns the selected screenshot as an
   image.
 - **Shortcut.** `Ctrl+M` opens or closes the mirror.
@@ -83,9 +83,9 @@ run `pnpm install` there after dependency changes.
 1. Open a Session.
 2. Click the device icon in the Session header, at the top right.
 3. Pick a running Android device to open its mirror, or start a stopped AVD.
-4. In the mirror, use the left rail for back, home, text, links, screenshot, history, send, reconnect, and close. History and send appear once a screenshot exists.
+4. In the mirror, use the left rail for back, home, text, links, screenshot, history, reconnect, and close. History appears once a screenshot exists.
 5. Use the title bar for the device switcher, connection status, and drag handle.
-6. Select a screenshot, then send it to the current chat.
+6. Open the input's `+` menu, choose **Device screenshot**, then pick a shot. The shot is added to the composer; add text before sending.
 
 To send a file, click the paperclip in the left rail and choose a file. The file
 is pushed to `/sdcard/Download/<name>` on the selected device.
@@ -114,7 +114,7 @@ A bare host is accepted; port `5555` is added automatically.
   `~/.dsh/device-deck/uploads`, pushed with `adb push`, and deleted after the
   transfer.
 - The plugin keeps no cloud service. Device commands go to local `adb` or
-  `xcrun`. Screenshots go to the current chat only when you send them.
+  `xcrun`. Screenshots go to the current chat only when you add them to the composer and send them.
 
 ## Limitations
 

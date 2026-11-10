@@ -27,7 +27,16 @@ window.__ModuleLoader__.load({
         adbMissing: '未找到 adb',
         refresh: '刷新设备',
         capture: '截图',
-        send: '发送到当前对话',
+        menuShot: '设备镜像截图',
+        menuShotHint: '选择截图并加入输入框',
+        pickerTitle: '选择截图',
+        pickerHint: '点击截图加入当前输入框',
+        pickerLoading: '正在读取截图…',
+        pickerEmpty: '还没有截图。先在设备镜像中截图。',
+        pickerLoadFailed: '读取截图失败：{error}',
+        pickerAttachFailed: '加入失败：{error}',
+        pickerBusy: '正在加入…',
+        attachUnavailable: '当前输入框不可用',
         history: '截图历史',
         close: '收起',
         back: '返回键',
@@ -43,9 +52,7 @@ window.__ModuleLoader__.load({
         disconnected: '设备画面已断开',
         emptyShot: '还没有截图',
         selected: '已选定',
-        sent: '已发送到当前对话',
         shotSaved: '截图已保存',
-        fallback: '上传失败，已把截图路径插入输入框',
         fileSending: '正在发送 {name}',
         fileSent: '已发送到 {path}',
         fileFailed: '发送失败：{error}',
@@ -96,7 +103,6 @@ window.__ModuleLoader__.load({
         railFile: '文件',
         railHistory: '历史',
         railCapture: '截图',
-        railSend: '发送',
         railRefresh: '重连',
         railClose: '收起',
       },
@@ -110,7 +116,16 @@ window.__ModuleLoader__.load({
         adbMissing: 'adb not found',
         refresh: 'Refresh devices',
         capture: 'Screenshot',
-        send: 'Send to current chat',
+        menuShot: 'Device screenshot',
+        menuShotHint: 'Pick a screenshot and add it to the composer',
+        pickerTitle: 'Choose a screenshot',
+        pickerHint: 'Click a screenshot to add it to the composer',
+        pickerLoading: 'Loading screenshots…',
+        pickerEmpty: 'No screenshots yet. Capture one in the device mirror first.',
+        pickerLoadFailed: 'Cannot load screenshots: {error}',
+        pickerAttachFailed: 'Cannot add the screenshot: {error}',
+        pickerBusy: 'Adding…',
+        attachUnavailable: 'The composer is not available',
         history: 'Screenshot history',
         close: 'Minimize',
         back: 'Back',
@@ -126,9 +141,7 @@ window.__ModuleLoader__.load({
         disconnected: 'Device stream disconnected',
         emptyShot: 'No screenshots yet',
         selected: 'Selected',
-        sent: 'Sent to the current chat',
         shotSaved: 'Screenshot saved',
-        fallback: 'Upload failed; the screenshot path was inserted into the composer',
         fileSending: 'Sending {name}',
         fileSent: 'Sent to {path}',
         fileFailed: 'Send failed: {error}',
@@ -179,7 +192,6 @@ window.__ModuleLoader__.load({
         railFile: 'File',
         railHistory: 'History',
         railCapture: 'Screenshot',
-        railSend: 'Send',
         railRefresh: 'Reconnect',
         railClose: 'Close',
       },
@@ -212,15 +224,16 @@ window.__ModuleLoader__.load({
       }
     }
 
+    function currentCopy(ctx) {
+      const active = ctx.locale?.getLocale?.().active || 'en';
+      return String(active).toLowerCase().startsWith('zh') ? COPY.zh : COPY.en;
+    }
+
     function useCopy(ctx) {
-      const read = () => {
-        const active = ctx.locale?.getLocale?.().active || 'en';
-        return String(active).toLowerCase().startsWith('zh') ? COPY.zh : COPY.en;
-      };
-      const [copy, setCopy] = useState(read);
+      const [copy, setCopy] = useState(() => currentCopy(ctx));
       useEffect(() => {
         if (!ctx.locale?.subscribe) return undefined;
-        return ctx.locale.subscribe(() => setCopy(read()));
+        return ctx.locale.subscribe(() => setCopy(currentCopy(ctx)));
       }, [ctx]);
       return copy;
     }
@@ -245,6 +258,188 @@ window.__ModuleLoader__.load({
 
     function shotUrl(shotPath) {
       return `${API}/file?path=${encodeURIComponent(shotPath)}`;
+    }
+
+    const shotPicker = {
+      sessionId: null,
+      listeners: new Set(),
+    };
+
+    function notifyShotPicker() {
+      for (const listener of shotPicker.listeners) listener();
+    }
+
+    function openShotPicker(sessionId) {
+      if (!sessionId) return;
+      shotPicker.sessionId = sessionId;
+      notifyShotPicker();
+    }
+
+    function closeShotPicker(sessionId) {
+      if (sessionId !== undefined && shotPicker.sessionId !== sessionId) return;
+      shotPicker.sessionId = null;
+      notifyShotPicker();
+    }
+
+    function useShotPickerOpen(sessionId) {
+      const [open, setOpen] = useState(shotPicker.sessionId === sessionId);
+      useEffect(() => {
+        const sync = () => setOpen(shotPicker.sessionId === sessionId);
+        shotPicker.listeners.add(sync);
+        sync();
+        return () => {
+          shotPicker.listeners.delete(sync);
+          if (shotPicker.sessionId === sessionId) closeShotPicker(sessionId);
+        };
+      }, [sessionId]);
+      return open;
+    }
+
+    async function attachShot(ctx, sessionId, inputActions, shot, t) {
+      const conversation = ctx.conversation || ctx.get?.('conversation');
+      if (!conversation?.createDrafts) throw new Error(t.attachUnavailable);
+      const binding = ctx.sessions?.binding?.(sessionId);
+      if (!binding) throw new Error(t.attachUnavailable);
+      let actions = inputActions;
+      if (!actions?.addAttachments) {
+        try {
+          actions = conversation.input?.for?.(binding.ctx)?.actions;
+        } catch {
+          /* fall through to the unavailable error */
+        }
+      }
+      if (!actions?.addAttachments) throw new Error(t.attachUnavailable);
+      const response = await fetch(shotUrl(shot.path), { cache: 'no-store' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const blob = await response.blob();
+      const file = new File([blob], shot.name || `device-shot-${Date.now()}.png`, { type: 'image/png' });
+      const ordinary = binding.session.getSnapshot().subagent === null;
+      const drafts = conversation.createDrafts(sessionId, [file], ordinary);
+      if (!actions.addAttachments(drafts.map((draft) => draft.id))) {
+        conversation.releaseDraftAttachments?.(drafts);
+        throw new Error(t.attachUnavailable);
+      }
+      try {
+        conversation.input?.for?.(binding.ctx)?.focus?.();
+      } catch {
+        /* focus is best-effort */
+      }
+    }
+
+    function shotTimeText(at) {
+      const date = new Date(at);
+      if (Number.isNaN(date.getTime())) return '';
+      return date.toLocaleString(undefined, {
+        month: 'numeric',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    }
+
+    function ShotPicker({ ctx, sessionId, inputActions, onClose }) {
+      const t = useCopy(ctx);
+      const [shots, setShots] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState('');
+      const [busy, setBusy] = useState('');
+
+      useEffect(() => {
+        let alive = true;
+        apiJson('/screenshots')
+          .then((data) => {
+            if (alive) setShots(Array.isArray(data.items) ? data.items : []);
+          })
+          .catch((loadError) => {
+            if (alive) setError(t.pickerLoadFailed.replace('{error}', loadError.message));
+          })
+          .finally(() => {
+            if (alive) setLoading(false);
+          });
+        return () => {
+          alive = false;
+        };
+      }, [t]);
+
+      useEffect(() => {
+        const onKeyDown = (event) => {
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            onClose();
+          }
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+      }, [onClose]);
+
+      const choose = async (shot) => {
+        if (busy) return;
+        setBusy(shot.path);
+        setError('');
+        try {
+          await attachShot(ctx, sessionId, inputActions, shot, t);
+          onClose();
+        } catch (attachError) {
+          setError(t.pickerAttachFailed.replace('{error}', attachError.message));
+        } finally {
+          setBusy('');
+        }
+      };
+
+      return ReactDOM.createPortal(
+        h('div', {
+          className: 'dd-shot-mask',
+          onMouseDown: (event) => {
+            if (event.target === event.currentTarget) onClose();
+          },
+        },
+          h('div', {
+            className: 'dd-shot-panel',
+            role: 'dialog',
+            'aria-modal': 'true',
+            'aria-label': t.pickerTitle,
+          },
+            h('div', { className: 'dd-shot-head' },
+              h('div', { className: 'dd-shot-titles' },
+                h('strong', null, t.pickerTitle),
+                h('span', null, t.pickerHint),
+              ),
+              h('button', {
+                type: 'button',
+                className: 'dd-shot-close',
+                title: t.close,
+                'aria-label': t.close,
+                onClick: onClose,
+              }, h(Icon, { name: 'close', size: 12 })),
+            ),
+
+            loading
+              ? h('div', { className: 'dd-shot-state' }, h('span', { className: 'dd-spinner' }), t.pickerLoading)
+              : error && shots.length === 0
+                ? h('div', { className: 'dd-shot-state' }, error)
+                : shots.length === 0
+                  ? h('div', { className: 'dd-shot-state' }, t.pickerEmpty)
+                  : h(Fragment, null,
+                      error && h('div', { className: 'dd-shot-error' }, error),
+                      h('div', { className: 'dd-shot-grid' },
+                        shots.map((shot) => h('button', {
+                          key: shot.path,
+                          type: 'button',
+                          className: 'dd-shot-item',
+                          'data-busy': busy === shot.path ? 'true' : 'false',
+                          disabled: Boolean(busy),
+                          title: new Date(shot.at).toLocaleString(),
+                          onClick: () => void choose(shot),
+                        },
+                          h('img', { src: shotUrl(shot.path), alt: shot.name, draggable: false }),
+                          h('span', { className: 'dd-shot-time' }, busy === shot.path ? t.pickerBusy : shotTimeText(shot.at)),
+                        )),
+                      ),
+                    ),
+          ),
+        ),
+        document.body,
+      );
     }
 
     function concatBytes(left, right) {
@@ -306,8 +501,6 @@ window.__ModuleLoader__.load({
             h('circle', { cx: 12, cy: 8, r: 2 }),
             h('rect', { x: 6, y: 2, width: 16, height: 16, rx: 2 }),
           );
-        case 'send':
-          return h('svg', common, h('path', { d: 'M21 3 10.5 13.5' }), h('path', { d: 'M21 3 14.5 21 10.5 13.5 3 9.5z' }));
         case 'close':
           return h('svg', common, h('path', { d: 'M6 6l12 12M18 6 6 18' }));
         case 'minimize':
@@ -453,6 +646,26 @@ window.__ModuleLoader__.load({
       .dd-picker-result[data-ok="false"]{color:var(--dsw-alias-state-error-primary)}
       .dd-picker-result[data-ok="true"]{color:var(--dsw-alias-state-success-primary)}
       .dd-picker-spinner{width:10px;height:10px;border:1.5px solid color-mix(in srgb, currentColor 25%, transparent);border-top-color:currentColor;border-radius:50%;animation:dd-spin .8s linear infinite;display:inline-block;flex:none}
+      .dd-shot-mask{position:fixed;inset:0;z-index:9450;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,.5);backdrop-filter:blur(2px)}
+      .dd-shot-panel{width:min(560px,calc(100vw - 32px));max-height:min(72vh,640px);display:flex;flex-direction:column;background:var(--dsw-alias-bg-overlay);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden;color:var(--dsw-alias-label-primary);font-family:inherit;animation:dd-in .16s ease-out}
+      .dd-shot-head{flex:none;display:flex;align-items:flex-start;gap:10px;padding:12px 12px 10px 14px;border-bottom:1px solid var(--dsw-alias-border-l1)}
+      .dd-shot-titles{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+      .dd-shot-titles strong{font-size:12.5px;font-weight:600}
+      .dd-shot-titles span{font-size:10.5px;line-height:1.45;color:var(--dsw-alias-label-secondary)}
+      .dd-shot-close{flex:none;width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:5px;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer}
+      .dd-shot-close:hover{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary)}
+      .dd-shot-grid{flex:1;min-height:0;overflow-y:auto;padding:10px;display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;align-content:start}
+      .dd-shot-item{position:relative;display:flex;flex-direction:column;gap:0;padding:0;border:1px solid var(--dsw-alias-border-l1);border-radius:7px;background:#000;overflow:hidden;cursor:pointer;color:var(--dsw-alias-label-primary);font:inherit;text-align:center;transition:border-color .15s ease,transform .15s ease}
+      .dd-shot-item:hover:not(:disabled){border-color:var(--dsw-alias-brand-primary)}
+      .dd-shot-item:disabled{cursor:default}
+      .dd-shot-item[data-busy="true"]{border-color:var(--dsw-alias-brand-primary)}
+      .dd-shot-item img{display:block;width:100%;aspect-ratio:9/16;object-fit:contain;background:#000;opacity:.92}
+      .dd-shot-item:hover:not(:disabled) img{opacity:1}
+      .dd-shot-time{display:block;padding:4px 2px;font-size:9.5px;line-height:1.3;color:var(--dsw-alias-label-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:var(--dsw-alias-bg-base)}
+      .dd-shot-item[data-busy="true"] .dd-shot-time{color:var(--dsw-alias-brand-primary)}
+      .dd-shot-state{flex:1;min-height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:24px 18px;text-align:center;font-size:11px;line-height:1.6;color:var(--dsw-alias-label-secondary)}
+      .dd-shot-state .dd-spinner{border-color:color-mix(in srgb, var(--dsw-alias-label-secondary) 25%, transparent);border-top-color:var(--dsw-alias-brand-primary)}
+      .dd-shot-error{flex:none;padding:8px 12px;border-bottom:1px solid var(--dsw-alias-border-l1);font-size:10.5px;line-height:1.45;color:var(--dsw-alias-state-error-primary)}
     `;
 
     function formatDuration(seconds, t) {
@@ -736,7 +949,7 @@ window.__ModuleLoader__.load({
         const [wifiBusy, setWifiBusy] = useState(false);
         const [wifiResult, setWifiResult] = useState(null);
         const t = useCopy(ctx);
-        const currentDraft = props.useInput((state) => state?.draft || '');
+        const shotPickerOpen = useShotPickerOpen(props.sessionId);
         const buttonRef = useRef(null);
         const menuRef = useRef(null);
 
@@ -946,8 +1159,6 @@ window.__ModuleLoader__.load({
                 h(Panel, {
                   ctx,
                   sessionId: props.sessionId,
-                  inputActions: props.inputActions,
-                  currentDraft,
                   onClose: () => {
                     shared.open = false;
                     saveStore();
@@ -957,6 +1168,12 @@ window.__ModuleLoader__.load({
                 document.body,
               )
             : null,
+          shotPickerOpen && h(ShotPicker, {
+            ctx,
+            sessionId: props.sessionId,
+            inputActions: props.inputActions,
+            onClose: () => closeShotPicker(props.sessionId),
+          }),
           menuOpen && menuRect
             ? ReactDOM.createPortal(
                 h(DevicePicker, {
@@ -987,7 +1204,7 @@ window.__ModuleLoader__.load({
       };
     }
 
-    function Panel({ ctx, sessionId, inputActions, currentDraft, onClose }) {
+    function Panel({ ctx, sessionId, onClose }) {
       const t = useCopy(ctx);
       const [devices, setDevices] = useState([]);
       const [adb, setAdb] = useState(null);
@@ -1004,7 +1221,6 @@ window.__ModuleLoader__.load({
       const [url, setUrl] = useState('');
       const [notice, setNotice] = useState('');
       const [busy, setBusy] = useState(false);
-      const [sending, setSending] = useState(false);
       const [pushing, setPushing] = useState(false);
       const [nonce, setNonce] = useState(0);
       const [offset, setOffset] = useState(shared.offset || { x: 0, y: 0 });
@@ -1026,7 +1242,6 @@ window.__ModuleLoader__.load({
       const device = devices.find((item) => item.serial === serial);
       const deviceName = device?.model || (serial ? serial : 'Android');
       const onlineDevices = devices.filter((item) => item.state === 'device');
-      const selectedShot = shots.find((item) => item.selected) || null;
 
       const flash = useCallback((message) => {
         setNotice(message);
@@ -1492,39 +1707,6 @@ window.__ModuleLoader__.load({
         }
       }, [flash]);
 
-      const sendShot = useCallback(async (shot) => {
-        if (!shot || sending) return;
-        setSending(true);
-        try {
-          const response = await fetch(shotUrl(shot.path));
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          const blob = await response.blob();
-          const fileUpload = ctx.fileUpload || ctx.get?.('fileUpload');
-          if (!fileUpload) throw new Error('上传服务不可用');
-          const upload = await fileUpload.uploadImage(sessionId, blob, 'image/png', shot.name);
-          const binding = ctx.sessions.binding(sessionId);
-          if (!binding) throw new Error('当前会话不可用');
-          const result = await binding.session.prompt([
-            { type: 'file', receiptId: upload.receiptId },
-            { type: 'text', text: `设备截图 · ${deviceName}` },
-          ], 'queue');
-          if (result && result.ok === false) {
-            throw new Error(result.error?.message || '发送失败');
-          }
-          flash(t.sent);
-        } catch {
-          try {
-            const mention = `设备截图：${shot.path}`;
-            inputActions?.setDraft?.(currentDraft ? `${currentDraft}\n${mention}` : mention);
-            flash(t.fallback);
-          } catch {
-            flash(t.fallback);
-          }
-        } finally {
-          setSending(false);
-        }
-      }, [ctx, sessionId, sending, deviceName, inputActions, currentDraft, flash, t]);
-
       const sendText = () => {
         const value = text.trim();
         if (!value || busy) return;
@@ -1687,7 +1869,6 @@ window.__ModuleLoader__.load({
             h('div', { className: 'dd-rail-sep' }),
             shots.length > 0 && railButton(t.railHistory, 'history', () => setStripOpen((value) => !value), { active: stripOpen }),
             railButton(t.railCapture, 'camera', () => void capture(), { disabled: !serial || busy }),
-            shots.length > 0 && railButton(t.railSend, 'send', () => void sendShot(selectedShot || shots[0]), { disabled: sending }),
             railButton(t.railRefresh, 'refresh', () => {
               retryRef.current = 0;
               setNonce((value) => value + 1);
@@ -1820,8 +2001,12 @@ window.__ModuleLoader__.load({
       );
     }
 
+    function ShotMenuIcon({ size = 14 }) {
+      return h(Icon, { name: 'camera', size });
+    }
+
     return {
-      inject: ['slots', 'sessions', 'fileUpload', 'locale'],
+      inject: ['slots', 'sessions', 'locale'],
       apply(ctx) {
         const Launcher = makeLauncher(ctx);
         ctx.slots.inject('conversation.session.header.utilities', () =>
@@ -1831,6 +2016,22 @@ window.__ModuleLoader__.load({
             order: 10,
           }, Launcher),
         );
+        ctx.inject(['commandUi'], (scope) => {
+          const commands = scope.get('commandUi');
+          scope.effect(() => commands.register({
+            name: 'device-shot',
+            label: () => currentCopy(ctx).menuShot,
+            description: () => currentCopy(ctx).menuShotHint,
+            icon: ShotMenuIcon,
+            available: (session) => Boolean(session?.sessionId && ctx.sessions?.binding?.(session.sessionId)),
+            ui: {
+              kind: 'action',
+              run: (session) => {
+                openShotPicker(session.sessionId);
+              },
+            },
+          }), 'device-deck: screenshot command');
+        });
       },
     };
   },
