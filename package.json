@@ -57,7 +57,8 @@
     "@yume-chan/adb": "2.6.3",
     "@yume-chan/adb-scrcpy": "2.3.2",
     "@yume-chan/adb-server-node-tcp": "2.5.2",
-    "@yume-chan/scrcpy": "2.3.0"
+    "@yume-chan/scrcpy": "2.3.0",
+    "appium-webdriveragent": "16.18.4"
   },
   "dsh": {
     "bundle": {

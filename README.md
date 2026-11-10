@@ -25,6 +25,9 @@ Android, iOS, and Web devices, with the agent able to inspect and drive them.
   open the mirror once they are ready.
 - **iOS simulator management.** List simulators, boot and shut down them, and
   open the Simulator app. Screen mirroring is not implemented yet.
+- **iOS device mirroring.** List connected iPhones and iPads with `devicectl`,
+  then mirror the screen over WebDriverAgent MJPEG. Tap, swipe, type text, press
+  Home, and capture screenshots. The first launch builds WebDriverAgent.
 - **Wireless ADB.** Connect a device with `host` or `host:port`.
 - **File transfer.** Pick a file on the computer and push it to
   `/sdcard/Download/` on the selected device.
@@ -51,6 +54,9 @@ Roadmap items are not implemented. Do not treat them as available features.
 - `adb` from Android platform-tools for Android devices.
 - Android SDK `emulator` for AVD management.
 - Xcode command-line tools for iOS simulators, on macOS.
+- For iOS devices: macOS, Xcode with the iOS SDK, `iproxy`
+  (libimobiledevice), and a device with Developer Mode enabled. An Apple ID must
+  be signed in to Xcode for automatic signing.
 
 The bundle ships `scrcpy-server` 3.3.3, so a separate scrcpy install is not
 required.
@@ -108,6 +114,9 @@ A bare host is accepted; port `5555` is added automatically.
   WebCodecs.
 - The Client half registers into the Session header and renders the device menu
   and the floating mirror.
+- For iOS devices, the Host builds and launches WebDriverAgent, forwards ports
+  with `iproxy`, and relays the MJPEG stream. Input actions go through the
+  WebDriverAgent HTTP API.
 - Screenshots live under `~/.dsh/device-deck/screenshots`. The newest 30 per
   device are kept; the selected screenshot is never removed.
 - File uploads are written to a temporary folder under
@@ -118,11 +127,21 @@ A bare host is accepted; port `5555` is added automatically.
 
 ## Limitations
 
-- The mirror is Android only.
+- The mirror supports Android and iOS devices. iOS simulators are listed and
+  controlled only.
+- The first iOS device mirror builds WebDriverAgent and takes 2–5 minutes. Build
+  output is cached under `~/.dsh/device-deck/wda`.
+- iOS device signing uses the Apple ID signed in to Xcode. Free accounts expire
+  after 7 days, so the build must then be repeated.
+- The iOS device must be unlocked and stay awake while mirroring. Set Auto-Lock
+  to Never, or the stream shows the lock screen.
+- iOS devices cannot be mirrored with the physical screen off. WebDriverAgent has
+  no display power control, unlike the scrcpy channel used on Android.
 - H.264 only. H.265 devices show an error.
 - Text input uses `adb shell input text`, so it accepts ASCII only.
 - One device is mirrored at a time.
 - iOS simulators are listed and controlled, but not mirrored.
+- iOS device mirroring depends on WebDriverAgent and keeps one session per device.
 - Web devices are not supported yet.
 - File transfer sends one file at a time, up to 2 GB, to `/sdcard/Download`.
 - Screen-off uses the scrcpy control channel. Some OEM builds may ignore it.

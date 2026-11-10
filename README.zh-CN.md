@@ -18,6 +18,8 @@
 - **反向控制**：点击、滑动、返回、主页、最近任务、文本输入、打开链接或深链。
 - **Android AVD 管理**：列出 AVD、无窗口启动、停止，就绪后打开镜像。
 - **iOS 模拟器管理**：列出、启动、关闭，并打开 Simulator。暂不支持画面镜像。
+- **iOS 真机镜像**：用 `devicectl` 列出连接的 iPhone 与 iPad；通过 WebDriverAgent 推流 MJPEG 画面，
+  支持点击、滑动、文本输入、主屏幕与截图。首次启动会自动构建 WebDriverAgent。
 - **无线 ADB**：支持 `host` 或 `host:port`。
 - **文件发送**：选择电脑上的文件，发送到当前设备的 `/sdcard/Download/`。
 - **截图**：保存当前画面、浏览最近截图；从输入框的 `+` 菜单选择截图并加入输入框。
@@ -41,6 +43,8 @@
 - Android：`adb`（Android platform-tools）。
 - AVD 管理：Android SDK 的 `emulator`。
 - iOS 模拟器：macOS 与 Xcode 命令行工具。
+- iOS 真机：macOS、Xcode（含 iOS SDK）、`iproxy`（libimobiledevice），设备已开启开发者模式。
+  Host 侧需在 Xcode 登录一个 Apple ID，用于自动签名。
 
 插件已内置 `scrcpy-server` 3.3.3，无需单独安装 scrcpy。
 
@@ -99,11 +103,17 @@
 
 ## 限制
 
-- 镜像仅支持 Android。
+- 镜像支持 Android 与 iOS 真机。iOS 模拟器只支持列表与启停。
+- iOS 真机首次打开镜像会构建 WebDriverAgent，约 2–5 分钟。构建产物缓存于
+  `~/.dsh/device-deck/wda`。
+- iOS 真机签名使用 Xcode 当前登录的 Apple ID。免费账号的 Profile 7 天到期，到期后需重新构建。
+- iOS 真机启动镜像时设备必须解锁并保持亮屏。建议把「自动锁定」设为「永不」，否则画面会切到锁屏。
+- iOS 真机不支持息屏镜像。WebDriverAgent 没有屏幕电源控制接口，无法像 scrcpy 那样关闭物理屏。
 - 仅 H.264。H.265 设备会提示错误。
 - 文本输入走 `adb shell input text`，仅支持 ASCII。
 - 同一时间只镜像一台设备。
 - iOS 模拟器可列表、启动、停止，但暂不支持镜像。
+- iOS 真机镜像依赖 WebDriverAgent，每台真机一个独立会话。
 - Web 设备暂不支持。
 - 文件发送一次一个，最大 2 GB，目标目录为 `/sdcard/Download`。
 - 息屏依赖 scrcpy 的控制通道。部分厂商系统可能不支持。插件进程崩溃时，

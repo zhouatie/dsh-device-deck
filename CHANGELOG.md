@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- List connected iOS devices with `xcrun devicectl` and show them in the device
+  menu next to simulators.
+- Mirror iOS device screens with WebDriverAgent over MJPEG. The Host builds and
+  launches WebDriverAgent on first use, forwards ports with `iproxy`, and relays
+  the stream. Tap, swipe, text input, Home, and screenshots go through the
+  WebDriverAgent HTTP API.
+- Rebuild WebDriverAgent automatically when the provisioning profile expires,
+  and report an untrusted developer certificate with a direct hint.
 - Add a **Recents** action to the mirror rail. It opens the Android overview
   screen, so background apps can be swiped away.
 - Add **Device screenshot** to the composer's `+` menu. It opens a screenshot
