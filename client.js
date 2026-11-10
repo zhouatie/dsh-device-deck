@@ -46,6 +46,9 @@ window.__ModuleLoader__.load({
         sent: '已发送到当前对话',
         shotSaved: '截图已保存',
         fallback: '上传失败，已把截图路径插入输入框',
+        fileSending: '正在发送 {name}',
+        fileSent: '已发送到 {path}',
+        fileFailed: '发送失败：{error}',
         connectingHint: '正在连接设备画面…',
         switchDevice: '切换设备',
         screenshotStrip: '截图',
@@ -86,6 +89,16 @@ window.__ModuleLoader__.load({
         menuStopRequested: '已请求停止',
         menuOnline: '台在线',
         menuNoDevice: '没有设备在线，点击启动模拟器',
+        railBack: '返回',
+        railHome: '主页',
+        railText: '输入',
+        railLink: '链接',
+        railFile: '文件',
+        railHistory: '历史',
+        railCapture: '截图',
+        railSend: '发送',
+        railRefresh: '重连',
+        railClose: '收起',
       },
       en: {
         title: 'Device Deck',
@@ -116,6 +129,9 @@ window.__ModuleLoader__.load({
         sent: 'Sent to the current chat',
         shotSaved: 'Screenshot saved',
         fallback: 'Upload failed; the screenshot path was inserted into the composer',
+        fileSending: 'Sending {name}',
+        fileSent: 'Sent to {path}',
+        fileFailed: 'Send failed: {error}',
         connectingHint: 'Connecting to the device…',
         switchDevice: 'Switch device',
         screenshotStrip: 'Shots',
@@ -156,6 +172,16 @@ window.__ModuleLoader__.load({
         menuStopRequested: 'Stop requested',
         menuOnline: 'online',
         menuNoDevice: 'No device online. Click to start an emulator.',
+        railBack: 'Back',
+        railHome: 'Home',
+        railText: 'Text',
+        railLink: 'Link',
+        railFile: 'File',
+        railHistory: 'History',
+        railCapture: 'Screenshot',
+        railSend: 'Send',
+        railRefresh: 'Reconnect',
+        railClose: 'Close',
       },
     };
 
@@ -274,7 +300,12 @@ window.__ModuleLoader__.load({
         case 'refresh':
           return h('svg', common, h('path', { d: 'M20 11a8 8 0 1 0-2.3 6.1' }), h('path', { d: 'M20 4v7h-7' }));
         case 'history':
-          return h('svg', common, h('rect', { x: 3, y: 5, width: 18, height: 15, rx: 2.6 }), h('circle', { cx: 9, cy: 12, r: 2.4 }), h('path', { d: 'M14 10.5h4M14 14h4' }));
+          return h('svg', common,
+            h('path', { d: 'M18 22H4a2 2 0 0 1-2-2V6' }),
+            h('path', { d: 'm22 13-1.296-1.296a2.41 2.41 0 0 0-3.408 0L11 18' }),
+            h('circle', { cx: 12, cy: 8, r: 2 }),
+            h('rect', { x: 6, y: 2, width: 16, height: 16, rx: 2 }),
+          );
         case 'send':
           return h('svg', common, h('path', { d: 'M21 3 10.5 13.5' }), h('path', { d: 'M21 3 14.5 21 10.5 13.5 3 9.5z' }));
         case 'close':
@@ -289,6 +320,8 @@ window.__ModuleLoader__.load({
           return h('svg', common, h('rect', { x: 2.5, y: 6, width: 19, height: 12, rx: 2.2 }), h('path', { d: 'M6 10h1M10 10h1M14 10h1M18 10h.5M7 14h10' }));
         case 'link':
           return h('svg', common, h('path', { d: 'M10 14a4 4 0 0 0 5.7 0l2.6-2.6a4 4 0 1 0-5.7-5.7L11.5 6.8' }), h('path', { d: 'M14 10a4 4 0 0 0-5.7 0l-2.6 2.6a4 4 0 1 0 5.7 5.7l1.1-1.1' }));
+        case 'paperclip':
+          return h('svg', common, h('path', { d: 'm21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48' }));
         case 'chevron':
           return h('svg', common, h('path', { d: 'M6 9l6 6 6-6' }));
         case 'alert':
@@ -347,8 +380,9 @@ window.__ModuleLoader__.load({
       .dd-rail button{display:flex;align-items:center;justify-content:center;width:100%;height:38px;border:0;border-bottom:1px solid #f1f1f4;background:transparent;color:#63636b;cursor:pointer;transition:background .15s ease,color .15s ease}
       .dd-rail button:last-child{border-bottom:0}
       .dd-rail-sep{height:1px;flex:none;background:#f1f1f4}
-      .dd-rail button:hover:not(:disabled){background:#fafafc;color:#1c1c21}
-      .dd-rail button:disabled{opacity:.35;cursor:default}
+      .dd-rail-tip{position:fixed;z-index:9600;transform:translateY(-50%);padding:3px 7px;border-radius:5px;background:rgba(24,24,27,.95);border:1px solid rgba(255,255,255,.14);color:#f4f4f5;font-size:10.5px;line-height:1.4;white-space:nowrap;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,.2)}
+      .dd-rail button:hover:not([data-disabled="true"]){background:#fafafc;color:#1c1c21}
+      .dd-rail button[data-disabled="true"]{opacity:.35;cursor:default}
       .dd-rail button[data-active="true"]{background:#eeedfd;color:#4f46e5}
       .dd-viewport{position:relative;flex:1;min-width:0;background:#000;overflow:hidden;touch-action:none;cursor:crosshair;border-radius:0 0 10px 10px}
       .dd-canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block}
@@ -971,10 +1005,12 @@ window.__ModuleLoader__.load({
       const [notice, setNotice] = useState('');
       const [busy, setBusy] = useState(false);
       const [sending, setSending] = useState(false);
+      const [pushing, setPushing] = useState(false);
       const [nonce, setNonce] = useState(0);
       const [offset, setOffset] = useState(shared.offset || { x: 0, y: 0 });
       const [switcherOpen, setSwitcherOpen] = useState(false);
       const [ripple, setRipple] = useState(null);
+      const [railTip, setRailTip] = useState(null);
       const [frameWidth, setFrameWidth] = useState(360);
 
       const canvasRef = useRef(null);
@@ -984,6 +1020,7 @@ window.__ModuleLoader__.load({
       const retryRef = useRef(0);
       const dragRef = useRef(null);
       const menuRef = useRef(null);
+      const fileInputRef = useRef(null);
       const frameRef = useRef(null);
 
       const device = devices.find((item) => item.serial === serial);
@@ -996,10 +1033,10 @@ window.__ModuleLoader__.load({
       }, []);
 
       useEffect(() => {
-        if (!notice) return undefined;
+        if (!notice || pushing) return undefined;
         const timer = window.setTimeout(() => setNotice(''), 3200);
         return () => window.clearTimeout(timer);
-      }, [notice]);
+      }, [notice, pushing]);
 
       useEffect(() => {
         if (!serial) return;
@@ -1077,7 +1114,10 @@ window.__ModuleLoader__.load({
       }, [refreshShots]);
 
       useEffect(() => {
-        if (shots.length === 0) setStripOpen(false);
+        if (shots.length === 0) {
+          setStripOpen(false);
+          setRailTip(null);
+        }
       }, [shots.length]);
 
       useEffect(() => {
@@ -1110,6 +1150,7 @@ window.__ModuleLoader__.load({
         let firstFrame = false;
         let timestamp = 0;
         let metaSize = null;
+        let retryResetTimer = null;
         const watchdog = window.setTimeout(() => {
           if (cancelled || firstFrame) return;
           setStatus('error');
@@ -1147,8 +1188,10 @@ window.__ModuleLoader__.load({
               }
               if (!firstFrame) {
                 firstFrame = true;
-                retryRef.current = 0;
                 window.clearTimeout(watchdog);
+                retryResetTimer = window.setTimeout(() => {
+                  if (!cancelled) retryRef.current = 0;
+                }, 10_000);
                 setStatus('live');
                 setError('');
                 if (width && height && (width !== videoSize.width || height !== videoSize.height)) {
@@ -1270,6 +1313,12 @@ window.__ModuleLoader__.load({
               const wasLive = firstFrame;
               setStatus((previous) => (previous === 'live' ? 'offline' : 'error'));
               setError(wasLive ? t.disconnected : t.streamError);
+              if (wasLive && retryRef.current < 3) {
+                retryRef.current += 1;
+                window.setTimeout(() => {
+                  if (!cancelled) setNonce((value) => value + 1);
+                }, 1200 * retryRef.current);
+              }
             }
           } catch (streamError) {
             if (cancelled || controller.signal.aborted) return;
@@ -1290,6 +1339,7 @@ window.__ModuleLoader__.load({
           cancelled = true;
           controller.abort();
           window.clearTimeout(watchdog);
+          if (retryResetTimer) window.clearTimeout(retryResetTimer);
           if (decoder !== null && decoder.state !== 'closed') {
             try {
               decoder.close();
@@ -1410,6 +1460,28 @@ window.__ModuleLoader__.load({
         }
       }, [serial, busy, flash, t]);
 
+      const pushFile = useCallback(async (file) => {
+        if (!file || !serial || pushing) return;
+        setPushing(true);
+        flash(t.fileSending.replace('{name}', file.name));
+        try {
+          const response = await fetch(`${API}/file-push?serial=${encodeURIComponent(serial)}&name=${encodeURIComponent(file.name)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/octet-stream' },
+            body: file,
+            cache: 'no-store',
+          });
+          const data = await response.json().catch(() => null);
+          if (!response.ok || !data?.success) throw new Error(data?.error || `HTTP ${response.status}`);
+          flash(t.fileSent.replace('{path}', data.path || file.name));
+        } catch (error) {
+          flash(t.fileFailed.replace('{error}', error.message));
+        } finally {
+          setPushing(false);
+          if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+      }, [serial, pushing, flash, t]);
+
       const selectShot = useCallback(async (shot) => {
         if (!shot || shot.selected) return;
         try {
@@ -1496,6 +1568,32 @@ window.__ModuleLoader__.load({
         saveStore();
       };
 
+      const showRailTip = (label, element) => {
+        const rect = element.getBoundingClientRect();
+        setRailTip({
+          label,
+          top: Math.round(rect.top + rect.height / 2),
+          right: Math.max(8, Math.round(window.innerWidth - rect.left + 8)),
+        });
+      };
+
+      const railButton = (label, icon, action, options = {}) => h('button', {
+        type: 'button',
+        'aria-label': label,
+        'aria-disabled': options.disabled ? 'true' : 'false',
+        'data-disabled': options.disabled ? 'true' : 'false',
+        'data-active': options.active ? 'true' : 'false',
+        onMouseEnter: (event) => showRailTip(label, event.currentTarget),
+        onMouseLeave: () => setRailTip(null),
+        onFocus: (event) => showRailTip(label, event.currentTarget),
+        onBlur: () => setRailTip(null),
+        onClick: () => {
+          if (options.disabled) return;
+          setRailTip(null);
+          action();
+        },
+      }, h(Icon, { name: icon, size: 14 }));
+
       const statusText = statusLabel(t, status);
       const offline = status === 'error' || status === 'offline';
       const isCompact = frameWidth < 330;
@@ -1563,73 +1661,39 @@ window.__ModuleLoader__.load({
           ),
         ),
 
+        h('input', {
+          ref: fileInputRef,
+          type: 'file',
+          style: { display: 'none' },
+          onChange: (event) => {
+            const file = event.target.files?.[0];
+            if (file) void pushFile(file);
+          },
+        }),
+
         h('div', { className: 'dd-body' },
           h('div', { className: 'dd-rail' },
-            h('button', {
-              type: 'button',
-              title: t.back,
-              disabled: !serial || busy,
-              onClick: () => void runAction({ type: 'key', key: 'back' }),
-            }, h(Icon, { name: 'back', size: 14 })),
-            h('button', {
-              type: 'button',
-              title: t.home,
-              disabled: !serial || busy,
-              onClick: () => void runAction({ type: 'key', key: 'home' }),
-            }, h(Icon, { name: 'home', size: 14 })),
-            h('button', {
-              type: 'button',
-              title: t.text,
-              'data-active': inputOpen ? 'true' : 'false',
-              disabled: !serial,
-              onClick: () => {
-                setInputOpen((value) => !value);
-                setLinkOpen(false);
-              },
-            }, h(Icon, { name: 'keyboard', size: 14 })),
-            h('button', {
-              type: 'button',
-              title: t.link,
-              'data-active': linkOpen ? 'true' : 'false',
-              disabled: !serial,
-              onClick: () => {
-                setLinkOpen((value) => !value);
-                setInputOpen(false);
-              },
-            }, h(Icon, { name: 'link', size: 14 })),
+            railButton(t.railBack, 'back', () => void runAction({ type: 'key', key: 'back' }), { disabled: !serial || busy }),
+            railButton(t.railHome, 'home', () => void runAction({ type: 'key', key: 'home' }), { disabled: !serial || busy }),
+            railButton(t.railText, 'keyboard', () => {
+              setInputOpen((value) => !value);
+              setLinkOpen(false);
+            }, { disabled: !serial, active: inputOpen }),
+            railButton(t.railLink, 'link', () => {
+              setLinkOpen((value) => !value);
+              setInputOpen(false);
+            }, { disabled: !serial, active: linkOpen }),
+            railButton(t.railFile, 'paperclip', () => fileInputRef.current?.click(), { disabled: !serial || pushing }),
             h('div', { className: 'dd-rail-sep' }),
-            shots.length > 0 && h('button', {
-              type: 'button',
-              title: t.history,
-              'data-active': stripOpen ? 'true' : 'false',
-              onClick: () => setStripOpen((value) => !value),
-            }, h(Icon, { name: 'history', size: 14 })),
-            h('button', {
-              type: 'button',
-              title: t.capture,
-              disabled: !serial || busy,
-              onClick: () => void capture(),
-            }, h(Icon, { name: 'camera', size: 14 })),
-            shots.length > 0 && h('button', {
-              type: 'button',
-              title: t.send,
-              disabled: sending,
-              onClick: () => void sendShot(selectedShot || shots[0]),
-            }, h(Icon, { name: 'send', size: 14 })),
-            h('button', {
-              type: 'button',
-              title: t.refresh,
-              onClick: () => {
-                retryRef.current = 0;
-                setNonce((value) => value + 1);
-              },
-            }, h(Icon, { name: 'refresh', size: 14 })),
+            shots.length > 0 && railButton(t.railHistory, 'history', () => setStripOpen((value) => !value), { active: stripOpen }),
+            railButton(t.railCapture, 'camera', () => void capture(), { disabled: !serial || busy }),
+            shots.length > 0 && railButton(t.railSend, 'send', () => void sendShot(selectedShot || shots[0]), { disabled: sending }),
+            railButton(t.railRefresh, 'refresh', () => {
+              retryRef.current = 0;
+              setNonce((value) => value + 1);
+            }),
             h('div', { className: 'dd-rail-sep' }),
-            h('button', {
-              type: 'button',
-              title: t.close,
-              onClick: onClose,
-            }, h(Icon, { name: 'minimize', size: 14 })),
+            railButton(t.railClose, 'minimize', onClose),
           ),
 
           h('div', {
@@ -1746,6 +1810,13 @@ window.__ModuleLoader__.load({
         ),
 
         notice && h('div', { className: 'dd-notice' }, notice),
+        railTip && ReactDOM.createPortal(
+          h('div', {
+            className: 'dd-rail-tip',
+            style: { top: `${railTip.top}px`, right: `${railTip.right}px` },
+          }, railTip.label),
+          document.body,
+        ),
       );
     }
 

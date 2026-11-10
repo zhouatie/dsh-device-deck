@@ -1,4 +1,6 @@
 import { execFile, spawn } from 'node:child_process';
+import { Transform } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { promisify } from 'node:util';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
@@ -15,13 +17,17 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DSH_HOME = process.env.DSH_HOME || path.join(os.homedir(), '.dsh');
 const DATA_DIR = path.join(DSH_HOME, 'device-deck');
 const SHOT_DIR = path.join(DATA_DIR, 'screenshots');
+const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
 const STATE_FILE = path.join(DATA_DIR, 'state.json');
 const SERVER_BIN = path.join(HERE, 'bin', 'scrcpy-server');
 const REMOTE_SERVER = '/data/local/tmp/dsh-device-deck-scrcpy.jar';
+const REMOTE_UPLOAD_DIR = '/sdcard/Download';
 
 const MAX_SHOTS = 30;
 const IDLE_TEARDOWN_MS = 30_000;
 const MAX_SUBSCRIBER_BACKLOG = 1024 * 1024;
+const MAX_GOP_BYTES = 8 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024;
 
 const T_META = 1;
 const T_CONFIG = 2;
@@ -40,6 +46,7 @@ let adbPathCache;
 
 function ensureDirs() {
   fs.mkdirSync(SHOT_DIR, { recursive: true });
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
   loadState();
 }
 
@@ -814,7 +821,10 @@ class StreamSession {
     this.destroyed = false;
     this.metadata = null;
     this.configPacket = null;
-    this.keyPacket = null;
+    this.gop = [];
+    this.gopBytes = 0;
+    this.gopComplete = false;
+    this.gopWaiters = new Set();
     this.idleTimer = null;
   }
 
@@ -870,6 +880,14 @@ class StreamSession {
       stayAwake: true,
     });
     const client = await AdbScrcpyClient.start(adb, REMOTE_SERVER, options);
+    if (this.destroyed) {
+      try {
+        await client.close();
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
     this.scrcpyClient = client;
 
     const video = await client.videoStream;
@@ -904,12 +922,29 @@ class StreamSession {
         const isConfig = value.type === 'configuration';
         const isKey = Boolean(value.keyframe);
         const payload = Buffer.from(value.data.buffer, value.data.byteOffset, value.data.byteLength);
-        if (isConfig) this.configPacket = payload;
-        if (isKey) this.keyPacket = payload;
+        if (isConfig) {
+          this.configPacket = payload;
+          this.gop = [];
+          this.gopBytes = 0;
+          this.gopComplete = false;
+        } else if (isKey) {
+          this.gop = [{ flags: 1, payload }];
+          this.gopBytes = payload.length;
+          this.gopComplete = true;
+          for (const done of [...this.gopWaiters]) done(true);
+          this.gopWaiters.clear();
+        } else if (this.gopComplete) {
+          this.gop.push({ flags: 0, payload });
+          this.gopBytes += payload.length;
+          if (this.gopBytes > MAX_GOP_BYTES) {
+            this.gop = [];
+            this.gopBytes = 0;
+            this.gopComplete = false;
+          }
+        }
         const flags = isKey ? 1 : 0;
         for (const subscriber of this.clients) {
           if (subscriber.closed) continue;
-          if (!isConfig && !isKey && subscriber.res.writableLength > MAX_SUBSCRIBER_BACKLOG) continue;
           subscriber.write(isConfig ? T_CONFIG : T_DATA, flags, payload);
         }
       }
@@ -927,7 +962,29 @@ class StreamSession {
     if (!this.metadata || client.closed) return;
     client.write(T_META, 0, Buffer.from(JSON.stringify(this.metadata)));
     if (this.configPacket) client.write(T_CONFIG, 0, this.configPacket);
-    if (this.keyPacket) client.write(T_DATA, 1, this.keyPacket);
+    if (!this.gopComplete || this.gop.length === 0) return;
+    client.replaying = true;
+    try {
+      for (const frame of this.gop) {
+        if (client.closed) break;
+        client.write(T_DATA, frame.flags, frame.payload);
+      }
+    } finally {
+      client.replaying = false;
+    }
+  }
+
+  waitForGop(timeout = 5000) {
+    if (this.gopComplete) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      const done = (ready) => {
+        clearTimeout(timer);
+        this.gopWaiters.delete(done);
+        resolve(ready);
+      };
+      const timer = setTimeout(() => done(false), timeout);
+      this.gopWaiters.add(done);
+    });
   }
 
   broadcast(frame) {
@@ -947,6 +1004,15 @@ class StreamSession {
       clearTimeout(this.idleTimer);
       this.idleTimer = null;
     }
+    if (this.starting) {
+      try {
+        await this.starting;
+      } catch {
+        /* ignore */
+      }
+    }
+    for (const done of [...this.gopWaiters]) done(false);
+    this.gopWaiters.clear();
     try {
       this.onDestroy?.();
     } catch {
@@ -975,6 +1041,19 @@ const hub = {
   sessions: new Map(),
   async subscribe(serial, client) {
     let session = this.sessions.get(serial);
+    if (session && !session.destroyed) {
+      if (session.clients.size === 0) {
+        await session.destroy();
+        session = null;
+      } else if (!session.gopComplete) {
+        const ready = await session.waitForGop(5000);
+        if (!ready) {
+          client.writeError('画面正在重建，请稍后重试');
+          client.end();
+          return;
+        }
+      }
+    }
     if (!session || session.destroyed) {
       session = new StreamSession(serial, () => this.sessions.delete(serial));
       this.sessions.set(serial, session);
@@ -1003,9 +1082,18 @@ function streamClient(res) {
   return {
     res,
     closed: false,
+    replaying: false,
     write(type, flags, payload) {
       if (this.closed || res.writableEnded) return;
-      if (type === T_DATA && (flags & 1) === 0 && res.writableLength > MAX_SUBSCRIBER_BACKLOG) return;
+      if (!this.replaying && type === T_DATA && (flags & 1) === 0 && res.writableLength > MAX_SUBSCRIBER_BACKLOG) {
+        this.closed = true;
+        try {
+          res.end();
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
       try {
         res.write(encodeFrame(type, flags, payload));
       } catch {
@@ -1063,6 +1151,64 @@ function routePath(req) {
 
 function routeQuery(req) {
   return new URL(req.url || '/', 'http://127.0.0.1').searchParams;
+}
+
+function sanitizeUploadName(value) {
+  const base = path.basename(String(value || '').replace(/\\/g, '/')).trim();
+  const cleaned = base
+    .replace(/[\u0000-\u001f<>:"/\\|?*]/g, '_')
+    .replace(/^\.+/, '')
+    .slice(0, 120);
+  if (!cleaned || cleaned === '.' || cleaned === '..') return '';
+  return cleaned;
+}
+
+async function handlePushFile(req, res) {
+  if (req.method !== 'POST') {
+    sendJson(res, 405, { error: 'method not allowed' });
+    return;
+  }
+  const query = routeQuery(req);
+  const serial = await resolveSerial(query.get('serial') || undefined);
+  const name = sanitizeUploadName(query.get('name') || '');
+  if (!name) {
+    sendJson(res, 400, { error: '文件名无效' });
+    return;
+  }
+  const declared = Number(req.headers['content-length'] || 0);
+  if (Number.isFinite(declared) && declared > MAX_UPLOAD_BYTES) {
+    sendJson(res, 413, { error: '文件超过 2 GB' });
+    return;
+  }
+
+  const temp = path.join(UPLOAD_DIR, `upload-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  let size = 0;
+  try {
+    await fsp.mkdir(UPLOAD_DIR, { recursive: true });
+    const limiter = new Transform({
+      transform(chunk, encoding, callback) {
+        size += chunk.length;
+        if (size > MAX_UPLOAD_BYTES) {
+          callback(new Error('文件超过 2 GB'));
+          return;
+        }
+        callback(null, chunk);
+      },
+    });
+    await pipeline(req, limiter, fs.createWriteStream(temp));
+
+    await runAdb(['-s', serial, 'shell', 'mkdir', '-p', REMOTE_UPLOAD_DIR], { timeout: 8000 });
+    const remote = `${REMOTE_UPLOAD_DIR}/${name}`;
+    await runAdb(['-s', serial, 'push', temp, remote], {
+      timeout: 600000,
+      maxBuffer: 4 * 1024 * 1024,
+    });
+    sendJson(res, 200, { success: true, serial, name, path: remote, bytes: size });
+  } catch (error) {
+    if (!res.headersSent) sendJson(res, 500, { error: adbErrorHint(error) });
+  } finally {
+    await fsp.rm(temp, { force: true }).catch(() => {});
+  }
 }
 
 async function handleDevices(req, res) {
@@ -1288,6 +1434,7 @@ export function apply(ctx) {
     ['/api/device-deck/screenshot', handleScreenshot],
     ['/api/device-deck/screenshots', handleScreenshots],
     ['/api/device-deck/screenshots/select', handleSelectScreenshot],
+    ['/api/device-deck/file-push', handlePushFile],
     ['/api/device-deck/file', handleFile],
     ['/api/device-deck/stream', handleStream],
   ];

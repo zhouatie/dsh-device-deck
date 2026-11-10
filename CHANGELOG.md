@@ -5,6 +5,27 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] - 2026-11-10
+
+### Added
+
+- Send a local file to `/sdcard/Download/` on the selected Android device from
+  the left rail.
+- Concise hover labels for every action in the mirror rail.
+
+### Changed
+
+- The screenshot-history action now uses the Images icon, matching openLoop.
+
+### Fixed
+
+- New mirror connections replay the complete GOP from the last keyframe instead
+  of a bare keyframe, which caused ghosted or frozen frames.
+- A client that falls behind now reconnects instead of silently dropping delta
+  frames.
+- A stream is not reused after its last client leaves; the next client starts
+  from a fresh keyframe.
+
 ## [0.1.1] - 2026-11-09
 
 ### Changed

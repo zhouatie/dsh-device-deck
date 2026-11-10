@@ -7,7 +7,7 @@ Device Deck is a DeepSeek Harness plugin for device work inside the Harness Web 
 It starts with an Android device mirror, then grows into one control surface for
 Android, iOS, and Web devices, with the agent able to inspect and drive them.
 
-> Status: alpha (`0.1.0`). The Android mirror is usable. iOS and Web mirroring
+> Status: alpha (`0.2.0`). The Android mirror is usable. iOS and Web mirroring
 > and AI E2E testing are on the roadmap.
 
 ## Features
@@ -24,6 +24,8 @@ Android, iOS, and Web devices, with the agent able to inspect and drive them.
 - **iOS simulator management.** List simulators, boot and shut down them, and
   open the Simulator app. Screen mirroring is not implemented yet.
 - **Wireless ADB.** Connect a device with `host` or `host:port`.
+- **File transfer.** Pick a file on the computer and push it to
+  `/sdcard/Download/` on the selected device.
 - **Screenshots.** Save the current screen, browse the latest shots, and send a
   shot to the current chat.
 - **Agent tool.** `device_screenshot` returns the selected screenshot as an
@@ -83,6 +85,9 @@ run `pnpm install` there after dependency changes.
 5. Use the title bar for the device switcher, connection status, and drag handle.
 6. Select a screenshot, then send it to the current chat.
 
+To send a file, click the paperclip in the left rail and choose a file. The file
+is pushed to `/sdcard/Download/<name>` on the selected device.
+
 Wireless ADB:
 
 ```text
@@ -101,6 +106,9 @@ A bare host is accepted; port `5555` is added automatically.
   and the floating mirror.
 - Screenshots live under `~/.dsh/device-deck/screenshots`. The newest 30 per
   device are kept; the selected screenshot is never removed.
+- File uploads are written to a temporary folder under
+  `~/.dsh/device-deck/uploads`, pushed with `adb push`, and deleted after the
+  transfer.
 - The plugin keeps no cloud service. Device commands go to local `adb` or
   `xcrun`. Screenshots go to the current chat only when you send them.
 
@@ -112,6 +120,7 @@ A bare host is accepted; port `5555` is added automatically.
 - One device is mirrored at a time.
 - iOS simulators are listed and controlled, but not mirrored.
 - Web devices are not supported yet.
+- File transfer sends one file at a time, up to 2 GB, to `/sdcard/Download`.
 
 ## Development
 
