@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   screen, so background apps can be swiped away.
 - Add **Device screenshot** to the composer's `+` menu. It opens a screenshot
   picker, and the chosen shot becomes a draft attachment in the composer.
+- Add **Open link** and **Back** to the iOS mirror. Back runs a left-edge swipe
+  through WebDriverAgent. Open link calls WebDriverAgent's `/url` endpoint and
+  accepts URLs or app schemes.
 
 ### Removed
 

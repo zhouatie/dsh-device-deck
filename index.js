@@ -958,6 +958,23 @@ class IosMirrorSession {
       await this.request('POST', `${base}/wda/pressButton`, { name: 'home' }, 15_000);
       return { success: true };
     }
+    if (type === 'back') {
+      const fromY = Math.round(this.screen.height / 2);
+      await this.request('POST', `${base}/wda/dragfromtoforduration`, {
+        fromX: 1,
+        fromY,
+        toX: Math.round(this.screen.width * 0.6),
+        toY: fromY,
+        duration: 0.2,
+      }, 20_000);
+      return { success: true };
+    }
+    if (type === 'openUrl') {
+      const url = String(action.url || '').trim();
+      if (!/^[a-z][a-z0-9+.-]*:/i.test(url)) throw new Error('链接需要带协议，例如 https:// 或 app://');
+      await this.request('POST', `${base}/url`, { url }, 20_000);
+      return { success: true };
+    }
     if (type === 'screenshot') {
       return { success: true, shot: await this.capture() };
     }

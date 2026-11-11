@@ -29,8 +29,9 @@ Android, iOS, and Web devices, with the agent able to inspect and drive them.
   MJPEG video plus tap, swipe, text input, and screenshots. Simulator builds need
   no signing.
 - **iOS device mirroring.** List connected iPhones and iPads with `devicectl`,
-  then mirror the screen over WebDriverAgent MJPEG. Tap, swipe, type text, press
-  Home, and capture screenshots. The first launch builds WebDriverAgent.
+  then mirror the screen over WebDriverAgent MJPEG. Tap, swipe, the back gesture,
+  type text, open links, press Home, and capture screenshots. The first launch
+  builds WebDriverAgent.
 - **Wireless ADB.** Connect a device with `host` or `host:port`.
 - **File transfer.** Pick a file on the computer and push it to
   `/sdcard/Download/` on the selected device.
@@ -92,6 +93,7 @@ run `pnpm install` there after dependency changes.
 2. Click the device icon in the Session header, at the top right.
 3. Pick a running Android device to open its mirror, or start a stopped AVD.
 4. In the mirror, use the left rail for back, home, recents, text, links, screenshot, history, reconnect, and close. History appears once a screenshot exists.
+   The iOS mirror rail provides the back gesture, home, text, links, screenshots, history, closing, and stopping the session.
 5. Use the title bar for the device switcher, connection status, and drag handle.
 6. Open the input's `+` menu, choose **Device screenshot**, then pick a shot. The shot is added to the composer; add text before sending.
 
@@ -139,6 +141,10 @@ A bare host is accepted; port `5555` is added automatically.
   to Never, or the stream shows the lock screen.
 - iOS devices cannot be mirrored with the physical screen off. WebDriverAgent has
   no display power control, unlike the scrcpy channel used on Android.
+- The iOS back action uses a left-edge swipe gesture, and works only on screens
+  that support it.
+- Open link on iOS devices uses WebDriverAgent's `/url` endpoint and needs
+  iOS 16.4 or later. Older versions fall back to Siri and may fail.
 - H.264 only. H.265 devices show an error.
 - Text input uses `adb shell input text`, so it accepts ASCII only.
 - One device is mirrored at a time.
