@@ -1741,7 +1741,7 @@ window.__ModuleLoader__.load({
             ratioX: pending.x,
             ratioY: pending.y,
             scrollX: Math.max(-160, Math.min(160, dx * 0.16)),
-            scrollY: Math.max(-160, Math.min(160, dy * 0.16)),
+            scrollY: Math.max(-160, Math.min(160, -dy * 0.16)),
             frameWidth: videoSize.width,
             frameHeight: videoSize.height,
           },
@@ -2373,7 +2373,7 @@ window.__ModuleLoader__.load({
             type: 'scroll',
             ratioX: pending.x,
             ratioY: pending.y,
-            scrollY: Math.max(-48, Math.min(48, dy * 0.16)),
+            scrollY: Math.max(-48, Math.min(48, -dy * 0.16)),
           },
         }).catch(() => undefined).finally(() => {
           pending.busy = false;
