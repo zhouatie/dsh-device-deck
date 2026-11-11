@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   plugin, routes, and lifecycle hooks.
 - `pnpm check` rebuilds the Client bundle, checks its syntax, and loads every
   Host module.
+- Restyle the text-input and open-link popovers with a solid light surface,
+  an inset input field, and a translucent close-button hover.
 
 ## [0.5.0] - 2026-11-11
 

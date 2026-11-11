@@ -678,7 +678,8 @@ export function Panel({ ctx, onClose }) {
     type: 'button',
     'aria-label': label,
     'aria-disabled': options.disabled ? 'true' : 'false',
-    'data-disabled': options.disabled ? 'true' : 'false',
+    'data-disabled': options.disabled && !options.locked ? 'true' : 'false',
+    'data-locked': options.locked ? 'true' : 'false',
     'data-active': options.active ? 'true' : 'false',
     onMouseEnter: (event) => showRailTip(label, event.currentTarget),
     onMouseLeave: () => setRailTip(null),
@@ -782,9 +783,9 @@ export function Panel({ ctx, onClose }) {
 
     h('div', { className: 'dd-body' },
       h('div', { className: 'dd-rail' },
-        railButton(t.railBack, 'back', () => void runAction({ type: 'key', key: 'back' }), { disabled: !serial || busy }),
-        railButton(t.railHome, 'home', () => void runAction({ type: 'key', key: 'home' }), { disabled: !serial || busy }),
-        railButton(t.railRecents, 'recents', () => void runAction({ type: 'key', key: 'recents' }), { disabled: !serial || busy }),
+        railButton(t.railBack, 'back', () => void runAction({ type: 'key', key: 'back' }), { disabled: !serial || busy, locked: busy }),
+        railButton(t.railHome, 'home', () => void runAction({ type: 'key', key: 'home' }), { disabled: !serial || busy, locked: busy }),
+        railButton(t.railRecents, 'recents', () => void runAction({ type: 'key', key: 'recents' }), { disabled: !serial || busy, locked: busy }),
         railButton(t.railText, 'keyboard', () => {
           setInputOpen((value) => !value);
           setLinkOpen(false);
@@ -793,11 +794,11 @@ export function Panel({ ctx, onClose }) {
           setLinkOpen((value) => !value);
           setInputOpen(false);
         }, { disabled: !serial, active: linkOpen }),
-        railButton(t.railFile, 'paperclip', () => fileInputRef.current?.click(), { disabled: !serial || pushing }),
-        railButton(t.railCopyPage, 'copy', () => void copyPageAddress(), { disabled: !serial || busy }),
+        railButton(t.railFile, 'paperclip', () => fileInputRef.current?.click(), { disabled: !serial || pushing, locked: pushing }),
+        railButton(t.railCopyPage, 'copy', () => void copyPageAddress(), { disabled: !serial || busy, locked: busy }),
         h('div', { className: 'dd-rail-sep' }),
         shots.length > 0 && railButton(t.railHistory, 'history', () => setStripOpen((value) => !value), { active: stripOpen }),
-        railButton(t.railCapture, 'camera', () => void capture(), { disabled: !serial || busy }),
+        railButton(t.railCapture, 'camera', () => void capture(), { disabled: !serial || busy, locked: busy }),
         h('div', { className: 'dd-rail-sep' }),
         railButton(t.railClose, 'minimize', onClose),
       ),
