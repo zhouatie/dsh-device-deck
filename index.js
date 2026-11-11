@@ -468,6 +468,37 @@ async function listIosDevices() {
   }
 }
 
+function xcodeDeveloperDir() {
+  try {
+    return execFileSync('xcode-select', ['-p'], { encoding: 'utf8', timeout: 4000 }).trim();
+  } catch {
+    return '';
+  }
+}
+
+function simulatorAppCandidates() {
+  const candidates = [];
+  const override = String(process.env.DSH_DEVICE_DECK_SIMULATOR_APP || '').trim();
+  if (override) candidates.push({ path: override, label: 'Simulator' });
+  const developer = xcodeDeveloperDir();
+  if (developer) {
+    candidates.push({ path: path.join(developer, 'Applications', 'Simulator.app'), label: 'Simulator' });
+    candidates.push({ path: path.join(developer, '..', 'Applications', 'DeviceHub.app'), label: 'Device Hub' });
+  }
+  candidates.push({ path: '/Applications/Xcode.app/Contents/Developer/Applications/Simulator.app', label: 'Simulator' });
+  return candidates;
+}
+
+async function openSimulatorApp() {
+  if (!isMacOS()) throw new Error('iOS 模拟器仅支持 macOS。');
+  const target = simulatorAppCandidates().find((item) => fs.existsSync(item.path));
+  if (!target) {
+    throw new Error('当前 Xcode 未提供 Simulator 应用。请从 Xcode 打开模拟器，或设置 DSH_DEVICE_DECK_SIMULATOR_APP 指向模拟器应用。');
+  }
+  await execFileAsync('open', ['-a', target.path], { timeout: 10_000 });
+  return target.label;
+}
+
 async function bootIosSimulator(udid) {
   if (!isMacOS()) throw new Error('iOS 模拟器仅支持 macOS。');
   const clean = String(udid || '').trim();
@@ -479,7 +510,7 @@ async function bootIosSimulator(udid) {
     if (!/Booted|current state/i.test(message)) throw new Error(message || '启动 iOS 模拟器失败');
   }
   try {
-    await execFileAsync('open', ['-a', 'Simulator'], { timeout: 10_000 });
+    await openSimulatorApp();
   } catch {
     /* the device can still boot headless */
   }
@@ -500,9 +531,8 @@ async function shutdownIosSimulator(udid) {
 }
 
 async function openIosSimulator() {
-  if (!isMacOS()) throw new Error('iOS 模拟器仅支持 macOS。');
-  await execFileAsync('open', ['-a', 'Simulator'], { timeout: 10_000 });
-  return { success: true, message: '已打开 Simulator' };
+  const label = await openSimulatorApp();
+  return { success: true, message: `已打开 ${label}` };
 }
 
 const IOS_WDA_DIR = path.join(DATA_DIR, 'wda');
@@ -510,7 +540,7 @@ const IOS_WDA_DEVICE_PORT = 8100;
 const IOS_WDA_MJPEG_PORT = 9100;
 const IOS_WDA_BOOT_TIMEOUT_MS = 180_000;
 const IOS_WDA_BUILD_TIMEOUT_MS = 900_000;
-const IOS_WDA_IDLE_MS = 60_000;
+const IOS_WDA_IDLE_MS = 600_000;
 
 const iosMirrors = new Map();
 const requireFromHere = createRequire(import.meta.url);
@@ -640,8 +670,9 @@ async function findXctestrun(derived) {
 }
 
 class IosMirrorSession {
-  constructor(udid) {
+  constructor(udid, kind = 'device') {
     this.udid = udid;
+    this.kind = kind === 'simulator' ? 'simulator' : 'device';
     this.status = 'idle';
     this.message = '';
     this.process = null;
@@ -741,55 +772,66 @@ class IosMirrorSession {
   }
 
   async prepareBuild(project) {
-    const team = resolveIosTeam();
-    if (!team) throw new Error('未找到 iOS 签名团队。请在 Xcode 登录 Apple ID，或设置 DSH_DEVICE_DECK_IOS_TEAM。');
-    const derived = path.join(IOS_WDA_DIR, 'DerivedData');
+    const simulator = this.kind === 'simulator';
     const bundleId = resolveWdaBundleId();
-    const marker = path.join(IOS_WDA_DIR, `build-${team}-${bundleId}.json`);
+    let team = '';
+    if (!simulator) {
+      team = resolveIosTeam();
+      if (!team) throw new Error('未找到 iOS 签名团队。请在 Xcode 登录 Apple ID，或设置 DSH_DEVICE_DECK_IOS_TEAM。');
+    }
+    const derived = path.join(IOS_WDA_DIR, simulator ? 'DerivedData-sim' : 'DerivedData');
+    const marker = path.join(IOS_WDA_DIR, simulator ? `build-sim-${bundleId}.json` : `build-${team}-${bundleId}.json`);
     this.markerPath = marker;
     const existing = await findXctestrun(derived);
     if (existing && fs.existsSync(marker)) return existing;
-    this.message = '正在构建 WebDriverAgent（首次约 2–5 分钟）…';
-    await runCommand('xcodebuild', [
+    const args = [
       'build-for-testing',
       '-project', project,
       '-scheme', 'WebDriverAgentRunner',
       '-destination', `id=${this.udid}`,
       '-derivedDataPath', derived,
-      '-allowProvisioningUpdates',
-      `DEVELOPMENT_TEAM=${team}`,
-      'CODE_SIGN_STYLE=Automatic',
       `PRODUCT_BUNDLE_IDENTIFIER=${bundleId}`,
-    ], {
+    ];
+    if (!simulator) {
+      args.push('-allowProvisioningUpdates', `DEVELOPMENT_TEAM=${team}`, 'CODE_SIGN_STYLE=Automatic');
+    }
+    this.message = '正在构建 WebDriverAgent（首次约 2–5 分钟）…';
+    await runCommand('xcodebuild', args, {
       cwd: path.dirname(project),
       timeout: IOS_WDA_BUILD_TIMEOUT_MS,
       onLine: (line) => this.pushLog(line),
     });
     const built = await findXctestrun(derived);
     if (!built) throw new Error('WebDriverAgent 构建结束，但未找到 xctestrun 产物。');
-    await fsp.writeFile(marker, JSON.stringify({ at: Date.now(), team, project, bundleId }));
+    await fsp.writeFile(marker, JSON.stringify({ at: Date.now(), team, project, bundleId, kind: this.kind }));
     return built;
   }
 
   async launch() {
+    const simulator = this.kind === 'simulator';
     this.port = await reservePort();
     this.mjpegPort = await reservePort();
-    const iproxy = resolveIproxy();
-    if (iproxy.includes(path.sep) && !fs.existsSync(iproxy)) {
-      throw new Error(`未找到 iproxy：${iproxy}。请安装 libimobiledevice。`);
+    if (simulator) {
+      this.forward = null;
+      this.mjpegForward = null;
+    } else {
+      const iproxy = resolveIproxy();
+      if (iproxy.includes(path.sep) && !fs.existsSync(iproxy)) {
+        throw new Error(`未找到 iproxy：${iproxy}。请安装 libimobiledevice。`);
+      }
+      this.forward = spawn(iproxy, [String(this.port), String(IOS_WDA_DEVICE_PORT), '-u', this.udid], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      this.mjpegForward = spawn(iproxy, [String(this.mjpegPort), String(IOS_WDA_MJPEG_PORT), '-u', this.udid], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      this.forward.on('error', () => undefined);
+      this.mjpegForward.on('error', () => undefined);
     }
-    this.forward = spawn(iproxy, [String(this.port), String(IOS_WDA_DEVICE_PORT), '-u', this.udid], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    this.mjpegForward = spawn(iproxy, [String(this.mjpegPort), String(IOS_WDA_MJPEG_PORT), '-u', this.udid], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    this.forward.on('error', () => undefined);
-    this.mjpegForward.on('error', () => undefined);
     const env = {
       ...process.env,
-      TEST_RUNNER_USE_PORT: String(IOS_WDA_DEVICE_PORT),
-      TEST_RUNNER_MJPEG_SERVER_PORT: String(IOS_WDA_MJPEG_PORT),
+      TEST_RUNNER_USE_PORT: simulator ? String(this.port) : String(IOS_WDA_DEVICE_PORT),
+      TEST_RUNNER_MJPEG_SERVER_PORT: simulator ? String(this.mjpegPort) : String(IOS_WDA_MJPEG_PORT),
     };
     this.process = spawn('xcodebuild', ['test-without-building', '-xctestrun', this.xctestrun, '-destination', `id=${this.udid}`], {
       env,
@@ -962,10 +1004,10 @@ class IosMirrorSession {
   }
 }
 
-function getIosMirror(udid) {
+function getIosMirror(udid, kind = 'device') {
   let mirror = iosMirrors.get(udid);
   if (!mirror) {
-    mirror = new IosMirrorSession(udid);
+    mirror = new IosMirrorSession(udid, kind);
     iosMirrors.set(udid, mirror);
   }
   return mirror;
@@ -989,9 +1031,9 @@ async function handleIosMirrorStart(req, res) {
     return;
   }
   const body = await readJson(req);
-  const mirror = getIosMirror(iosUdid(body.udid));
+  const mirror = getIosMirror(iosUdid(body.udid), body.kind);
   await mirror.ensure();
-  sendJson(res, 200, { success: true, status: mirror.status, screen: mirror.screen });
+  sendJson(res, 200, { success: true, status: mirror.status, kind: mirror.kind, screen: mirror.screen });
 }
 
 async function handleIosMirrorStop(req, res) {
@@ -1020,7 +1062,7 @@ async function handleIosMirrorStatus(req, res) {
 
 async function handleIosMirrorStream(req, res) {
   const query = routeQuery(req);
-  const mirror = getIosMirror(iosUdid(query.get('udid')));
+  const mirror = getIosMirror(iosUdid(query.get('udid')), String(query.get('kind') || 'device'));
   await mirror.ensure();
   const response = await fetch(`http://127.0.0.1:${mirror.mjpegPort}/`, { cache: 'no-store' });
   if (!response.ok || !response.body) throw new Error('读取 iOS 画面失败');
@@ -1051,7 +1093,7 @@ async function handleIosAction(req, res) {
     return;
   }
   const body = await readJson(req);
-  const mirror = getIosMirror(iosUdid(body.udid));
+  const mirror = getIosMirror(iosUdid(body.udid), body.kind);
   const result = await mirror.perform(body.action || {});
   sendJson(res, 200, { ...result, udid: mirror.udid });
 }
@@ -1062,7 +1104,7 @@ async function handleIosScreenshot(req, res) {
     return;
   }
   const body = await readJson(req);
-  const mirror = getIosMirror(iosUdid(body.udid));
+  const mirror = getIosMirror(iosUdid(body.udid), body.kind);
   if (mirror.status !== 'ready') await mirror.ensure();
   const shot = await mirror.capture();
   await pruneShots(mirror.udid);

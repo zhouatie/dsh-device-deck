@@ -24,7 +24,10 @@ Android, iOS, and Web devices, with the agent able to inspect and drive them.
 - **Android AVD management.** List AVDs, start them headless, stop them, and
   open the mirror once they are ready.
 - **iOS simulator management.** List simulators, boot and shut down them, and
-  open the Simulator app. Screen mirroring is not implemented yet.
+  open the Simulator app or Device Hub.
+- **iOS simulator mirroring.** The same WebDriverAgent pipeline as devices, with
+  MJPEG video plus tap, swipe, text input, and screenshots. Simulator builds need
+  no signing.
 - **iOS device mirroring.** List connected iPhones and iPads with `devicectl`,
   then mirror the screen over WebDriverAgent MJPEG. Tap, swipe, type text, press
   Home, and capture screenshots. The first launch builds WebDriverAgent.
@@ -40,7 +43,6 @@ Android, iOS, and Web devices, with the agent able to inspect and drive them.
 ## Roadmap
 
 - Web page preview and control.
-- iOS simulator mirroring.
 - AI E2E testing: plan, act, wait, and assert against a device or page.
 - Test recording and replay.
 - Multi-device decks.
@@ -140,8 +142,10 @@ A bare host is accepted; port `5555` is added automatically.
 - H.264 only. H.265 devices show an error.
 - Text input uses `adb shell input text`, so it accepts ASCII only.
 - One device is mirrored at a time.
-- iOS simulators are listed and controlled, but not mirrored.
+- iOS simulator mirroring also uses WebDriverAgent and builds in about a minute.
 - iOS device mirroring depends on WebDriverAgent and keeps one session per device.
+- Every cold start installs WDA again and takes 10–40 seconds. Reopening the
+  mirror within 10 minutes reuses the running session without reinstalling.
 - Web devices are not supported yet.
 - File transfer sends one file at a time, up to 2 GB, to `/sdcard/Download`.
 - Screen-off uses the scrcpy control channel. Some OEM builds may ignore it.

@@ -80,6 +80,7 @@ window.__ModuleLoader__.load({
         iosBuilding: '正在构建 WebDriverAgent…',
         iosReady: '已连接',
         iosFailed: 'iOS 镜像启动失败',
+        iosStop: '停止镜像',
         menuShutdown: '已关机',
         menuStart: '启动',
         menuStartingBtn: '启动中',
@@ -179,6 +180,7 @@ window.__ModuleLoader__.load({
         iosBuilding: 'Building WebDriverAgent…',
         iosReady: 'Connected',
         iosFailed: 'Cannot start the iOS mirror',
+        iosStop: 'Stop mirror',
         menuShutdown: 'Shutdown',
         menuStart: 'Start',
         menuStartingBtn: 'Starting',
@@ -224,6 +226,7 @@ window.__ModuleLoader__.load({
         return {
           open: Boolean(parsed?.open),
           platform: parsed?.platform === 'ios' ? 'ios' : 'android',
+          iosKind: parsed?.iosKind === 'simulator' ? 'simulator' : 'device',
           serial: typeof parsed?.serial === 'string' ? parsed.serial : '',
           offset: {
             x: Number.isFinite(parsed?.offset?.x) ? parsed.offset.x : 0,
@@ -231,7 +234,7 @@ window.__ModuleLoader__.load({
           },
         };
       } catch {
-        return { open: false, platform: 'android', serial: '', offset: { x: 0, y: 0 } };
+        return { open: false, platform: 'android', iosKind: 'device', serial: '', offset: { x: 0, y: 0 } };
       }
     }
 
@@ -799,7 +802,7 @@ window.__ModuleLoader__.load({
       };
       const openRow = (row) => {
         if (row.platform === 'ios') {
-          void onOpenIos(row);
+          onOpenIosDevice({ ...row, kind: 'simulator' });
           return;
         }
         if (!row.serial) {
@@ -833,7 +836,7 @@ window.__ModuleLoader__.load({
                   h('button', {
                     type: 'button',
                     className: 'dd-picker-main',
-                    title: row.platform === 'ios' ? t.menuOpenSimulator : t.menuOpenMirror,
+                    title: t.menuOpenMirror,
                     onClick: () => openRow(row),
                   },
                     h('div', { className: 'dd-picker-line' },
@@ -1168,8 +1171,9 @@ window.__ModuleLoader__.load({
           setMenuOpen(false);
         };
 
-        const openIosDevice = (row) => {
+        const openIosMirror = (row) => {
           shared.platform = 'ios';
+          shared.iosKind = row.kind === 'simulator' ? 'simulator' : 'device';
           shared.serial = row.udid;
           saveStore();
           notifyStore();
@@ -1287,7 +1291,7 @@ window.__ModuleLoader__.load({
                   t,
                   onOpenAndroid: openAndroid,
                   onOpenIos: openIos,
-                  onOpenIosDevice: openIosDevice,
+                  onOpenIosDevice: openIosMirror,
                   onStartAvd: startAvd,
                   onStartIos: startIos,
                   onStop: stopRow,
@@ -2121,6 +2125,7 @@ window.__ModuleLoader__.load({
     function IosPanel({ ctx, onClose }) {
       const t = useCopy(ctx);
       const [udid, setUdid] = useState(shared.serial || '');
+      const [kind, setKind] = useState(shared.iosKind === 'simulator' ? 'simulator' : 'device');
       const [devices, setDevices] = useState([]);
       const [status, setStatus] = useState('starting');
       const [error, setError] = useState('');
@@ -2151,14 +2156,26 @@ window.__ModuleLoader__.load({
         if (!udid) return;
         shared.serial = udid;
         shared.platform = 'ios';
+        shared.iosKind = kind;
         saveStore();
-      }, [udid]);
+      }, [udid, kind]);
 
       const refreshDevices = useCallback(async () => {
         try {
           const data = await apiJson('/inventory');
-          const items = data?.ios?.devices?.items;
-          setDevices(Array.isArray(items) ? items : []);
+          const physical = (data?.ios?.devices?.items || []).map((item) => ({
+            udid: item.udid,
+            name: item.name,
+            detail: [item.model, item.osVersion ? `iOS ${item.osVersion}` : '', '真机'].filter(Boolean).join(' · '),
+            kind: 'device',
+          }));
+          const simulators = (data?.ios?.running || []).map((item) => ({
+            udid: item.udid,
+            name: item.name,
+            detail: [item.version ? `iOS ${item.version}` : '', '模拟器'].filter(Boolean).join(' · '),
+            kind: 'simulator',
+          }));
+          setDevices([...physical, ...simulators]);
         } catch {
           /* keep the previous list */
         }
@@ -2228,7 +2245,7 @@ window.__ModuleLoader__.load({
             })
             .catch(() => undefined);
         }, 1500);
-        void postJson('/ios/mirror/start', { udid })
+        void postJson('/ios/mirror/start', { udid, kind })
           .then((data) => {
             if (cancelled) return;
             if (data?.screen?.width) setScreen({ width: data.screen.width, height: data.screen.height });
@@ -2244,9 +2261,8 @@ window.__ModuleLoader__.load({
         return () => {
           cancelled = true;
           window.clearInterval(poll);
-          void postJson('/ios/mirror/stop', { udid }).catch(() => undefined);
         };
-      }, [udid, nonce]);
+      }, [udid, kind, nonce]);
 
       const ratioFromEvent = (clientX, clientY) => {
         const viewport = viewportRef.current;
@@ -2260,13 +2276,13 @@ window.__ModuleLoader__.load({
       const sendAction = useCallback(async (action) => {
         if (!udid) return false;
         try {
-          await postJson('/ios/action', { udid, action });
+          await postJson('/ios/action', { udid, kind, action });
           return true;
         } catch (actionError) {
           setNotice(actionError.message);
           return false;
         }
-      }, [udid]);
+      }, [udid, kind]);
 
       const handlePointerDown = (event) => {
         if (status !== 'live' || event.button === 2) return;
@@ -2319,13 +2335,22 @@ window.__ModuleLoader__.load({
       const capture = async () => {
         if (!udid) return;
         try {
-          const data = await postJson('/ios/screenshot', { udid });
+          const data = await postJson('/ios/screenshot', { udid, kind });
           setShots((previous) => [data.shot, ...previous.map((item) => ({ ...item, selected: false }))]);
           setStripOpen(true);
           setNotice(t.shotSaved);
         } catch (captureError) {
           setNotice(captureError.message);
         }
+      };
+
+      const stopMirror = async () => {
+        try {
+          await postJson('/ios/mirror/stop', { udid });
+        } catch {
+          /* the session may already be gone */
+        }
+        onClose();
       };
 
       const sendText = async () => {
@@ -2430,15 +2455,16 @@ window.__ModuleLoader__.load({
                         key: item.udid,
                         type: 'button',
                         className: 'dd-menu-item',
-                        'data-active': item.udid === udid ? 'true' : 'false',
+                        'data-active': item.udid === udid && item.kind === kind ? 'true' : 'false',
                         onClick: () => {
                           setSwitcherOpen(false);
+                          setKind(item.kind);
                           setUdid(item.udid);
                         },
                       },
                         h(Icon, { name: 'phone', size: 12 }),
                         h('span', null, item.name),
-                        h('em', null, item.osVersion ? `iOS ${item.osVersion}` : ''),
+                        h('em', null, item.detail || ''),
                       )),
                 ),
               ),
@@ -2467,6 +2493,7 @@ window.__ModuleLoader__.load({
               railButton(t.railCapture, 'camera', () => void capture(), { disabled: !isLive }),
               h('div', { className: 'dd-rail-sep' }),
               railButton(t.railClose, 'minimize', onClose),
+              railButton(t.iosStop, 'power', () => void stopMirror(), { disabled: !udid }),
             ),
 
             h('div', {
@@ -2481,7 +2508,7 @@ window.__ModuleLoader__.load({
               isLive && h('img', {
                 className: 'dd-canvas',
                 key: `${udid}-${nonce}`,
-                src: `${API}/ios/stream?udid=${encodeURIComponent(udid)}&_=${nonce}`,
+                src: `${API}/ios/stream?udid=${encodeURIComponent(udid)}&kind=${kind}&_=${nonce}`,
                 alt: deviceName,
                 draggable: false,
                 onError: () => {

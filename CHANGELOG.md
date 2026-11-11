@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   WebDriverAgent HTTP API.
 - Rebuild WebDriverAgent automatically when the provisioning profile expires,
   and report an untrusted developer certificate with a direct hint.
+- Mirror iOS simulators through the same WebDriverAgent pipeline as devices.
+  Simulator builds skip signing and serve MJPEG directly, without `iproxy`.
+- Resolve the simulator app from `xcode-select -p` and fall back to Device Hub,
+  because Xcode 27 no longer ships `Simulator.app`.
+- Keep the iOS mirror session alive for 10 minutes after the panel closes, so
+  reopening reuses the running WebDriverAgent instead of reinstalling it. A new
+  rail action stops the session immediately.
 - Add a **Recents** action to the mirror rail. It opens the Android overview
   screen, so background apps can be swiped away.
 - Add **Device screenshot** to the composer's `+` menu. It opens a screenshot
