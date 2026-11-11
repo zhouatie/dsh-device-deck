@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.4.0] - 2026-11-11
 
 ### Added
 
@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Add **Open link** and **Back** to the iOS mirror. Back runs a left-edge swipe
   through WebDriverAgent. Open link calls WebDriverAgent's `/url` endpoint and
   accepts URLs or app schemes.
+- Scroll the Android and iOS mirrors with the mouse wheel. Wheel down moves the
+  content down. Android scrolls through the scrcpy control channel; iOS scrolls
+  with a WebDriverAgent drag.
 
 ### Removed
 
