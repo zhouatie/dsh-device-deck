@@ -1,0 +1,67 @@
+{
+  "format": 1,
+  "title": {
+    "en": "Device Deck Market",
+    "zh": "设备台插件源"
+  },
+  "description": {
+    "en": "Plugin index for Device Deck.",
+    "zh": "设备台的插件索引。"
+  },
+  "metadata": {
+    "categories": {
+      "tools": {
+        "title": {
+          "en": "Tools & Capabilities",
+          "zh": "工具与能力"
+        }
+      }
+    }
+  },
+  "plugins": [
+    {
+      "name": "dsh-device-deck",
+      "title": {
+        "en": "Device Deck",
+        "zh": "设备台"
+      },
+      "description": {
+        "en": "Mirror Android devices and iOS simulators, manage emulators, and hand screenshots to the agent.",
+        "zh": "在 Harness 内镜像 Android 设备与 iOS 模拟器、管理模拟器，并让 Agent 读取截图。"
+      },
+      "icon": "https://raw.githubusercontent.com/zhouatie/dsh-device-deck/main/icon.svg",
+      "author": "zhouatie",
+      "homepage": "https://github.com/zhouatie/dsh-device-deck",
+      "repository": {
+        "url": "https://github.com/zhouatie/dsh-device-deck"
+      },
+      "metadata": {
+        "category": "tools",
+        "keywords": [
+          "deepseek-harness",
+          "dsh-plugin",
+          "android",
+          "ios",
+          "emulator",
+          "scrcpy",
+          "device-mirror",
+          "screenshot"
+        ]
+      },
+      "versions": [
+        {
+          "version": "0.3.0",
+          "publishTimestamp": 1794377577,
+          "source": {
+            "type": "git",
+            "url": "https://github.com/zhouatie/dsh-device-deck",
+            "commit": "82892aede40dd4282621c3a3ddb5e70e9f4c21c6"
+          },
+          "engines": {
+            "dsh": ">=0.2.2-rc.1 <0.3.0"
+          }
+        }
+      ]
+    }
+  ]
+}
