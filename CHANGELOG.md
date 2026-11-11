@@ -5,6 +5,19 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] - 2026-11-11
+
+### Added
+
+- Preview a screenshot in the device mirror from the screenshot history, for
+  Android and iOS. The first screenshot is no longer selected by default.
+- Copy the previewed screenshot to the clipboard as a PNG image.
+- Close the preview with the X button in its top-right corner.
+
+### Changed
+
+- Rename the screenshot-history rail label to “Screenshot history”.
+
 ## [0.4.0] - 2026-11-11
 
 ### Added

@@ -58,6 +58,10 @@ window.__ModuleLoader__.load({
         disconnected: '设备画面已断开',
         emptyShot: '还没有截图',
         selected: '已选定',
+        previewClose: '关闭预览',
+        previewCopy: '复制图片',
+        copyShotDone: '图片已复制',
+        copyShotFailed: '复制图片失败：{error}',
         shotSaved: '截图已保存',
         fileSending: '正在发送 {name}',
         fileSent: '已发送到 {path}',
@@ -118,7 +122,7 @@ window.__ModuleLoader__.load({
         railText: '输入',
         railLink: '链接',
         railFile: '文件',
-        railHistory: '历史',
+        railHistory: '截图历史',
         railCapture: '截图',
         railCopyPage: '复制页面地址',
         copyPageDone: '页面地址已复制',
@@ -168,6 +172,10 @@ window.__ModuleLoader__.load({
         disconnected: 'Device stream disconnected',
         emptyShot: 'No screenshots yet',
         selected: 'Selected',
+        previewClose: 'Close preview',
+        previewCopy: 'Copy image',
+        copyShotDone: 'Image copied',
+        copyShotFailed: 'Copy image failed: {error}',
         shotSaved: 'Screenshot saved',
         fileSending: 'Sending {name}',
         fileSent: 'Sent to {path}',
@@ -228,7 +236,7 @@ window.__ModuleLoader__.load({
         railText: 'Text',
         railLink: 'Link',
         railFile: 'File',
-        railHistory: 'History',
+        railHistory: 'Screenshot history',
         railCapture: 'Screenshot',
         railCopyPage: 'Copy page address',
         copyPageDone: 'Page address copied',
@@ -424,6 +432,16 @@ window.__ModuleLoader__.load({
 
     function shotUrl(shotPath) {
       return `${API}/file?path=${encodeURIComponent(shotPath)}`;
+    }
+
+    async function copyShotImage(shotPath) {
+      if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') {
+        throw new Error('clipboard unavailable');
+      }
+      const response = await fetch(shotUrl(shotPath), { cache: 'no-store' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const blob = await response.blob();
+      await navigator.clipboard.write([new ClipboardItem({ [blob.type || 'image/png']: blob })]);
     }
 
     const shotPicker = {
@@ -809,6 +827,12 @@ window.__ModuleLoader__.load({
       .dd-thumb:hover{opacity:1}
       .dd-thumb[data-selected="true"]{border-color:#818cf8;box-shadow:0 0 0 1px rgba(129,140,248,.7);opacity:1}
       .dd-thumb img{height:100%;width:auto;display:block;object-fit:cover}
+      .dd-preview{position:absolute;inset:0;z-index:4;display:flex;align-items:center;justify-content:center;background:#000;cursor:default;animation:dd-in .15s ease-out}
+      .dd-preview img{width:100%;height:100%;object-fit:contain;display:block}
+      .dd-preview-actions{position:absolute;top:8px;right:8px;display:flex;align-items:center;gap:6px}
+      .dd-preview-actions button{display:flex;align-items:center;justify-content:center;width:24px;height:24px;border:0;border-radius:6px;background:rgba(24,24,27,.72);color:#f4f4f5;cursor:pointer;backdrop-filter:blur(4px);transition:background .15s ease}
+      .dd-preview-copy:hover{background:rgba(99,102,241,.85)}
+      .dd-preview-close:hover{background:rgba(239,68,68,.85)}
       .dd-pop{position:absolute;right:42px;top:50%;transform:translateY(-50%);width:240px;max-width:calc(100% - 52px);display:flex;flex-direction:column;background:var(--dsw-alias-bg-overlay);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;box-shadow:0 16px 40px rgba(0,0,0,.26);z-index:6;overflow:hidden;color:var(--dsw-alias-label-primary);pointer-events:auto}
       .dd-pop-head{display:flex;align-items:center;justify-content:space-between;gap:8px;height:34px;padding:0 8px 0 10px;border-bottom:1px solid var(--dsw-alias-border-l1);font-size:11.5px;font-weight:500;flex:none}
       .dd-pop-head button{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border:0;border-radius:5px;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer}
@@ -1500,6 +1524,7 @@ window.__ModuleLoader__.load({
       const [videoSize, setVideoSize] = useState({ width: 1080, height: 2400 });
       const [shots, setShots] = useState([]);
       const [stripOpen, setStripOpen] = useState(false);
+      const [previewShot, setPreviewShot] = useState(null);
       const [inputOpen, setInputOpen] = useState(false);
       const [linkOpen, setLinkOpen] = useState(false);
       const [text, setText] = useState('');
@@ -1547,6 +1572,7 @@ window.__ModuleLoader__.load({
 
       useEffect(() => {
         retryRef.current = 0;
+        setPreviewShot(null);
       }, [serial]);
 
       const refreshDevices = useCallback(async () => {
@@ -1618,6 +1644,7 @@ window.__ModuleLoader__.load({
         if (shots.length === 0) {
           setStripOpen(false);
           setRailTip(null);
+          setPreviewShot(null);
         }
       }, [shots.length]);
 
@@ -2073,7 +2100,9 @@ window.__ModuleLoader__.load({
       }, [serial, pushing, flash, t]);
 
       const selectShot = useCallback(async (shot) => {
-        if (!shot || shot.selected) return;
+        if (!shot) return;
+        setPreviewShot(shot);
+        if (shot.selected) return;
         try {
           await postJson('/screenshots/select', { path: shot.path });
           setShots((previous) => previous.map((item) => ({ ...item, selected: item.path === shot.path })));
@@ -2081,6 +2110,16 @@ window.__ModuleLoader__.load({
           flash(selectError.message);
         }
       }, [flash]);
+
+      const copyPreview = useCallback(async () => {
+        if (!previewShot) return;
+        try {
+          await copyShotImage(previewShot.path);
+          flash(t.copyShotDone);
+        } catch (copyError) {
+          flash(t.copyShotFailed.replace('{error}', copyError.message));
+        }
+      }, [previewShot, flash, t]);
 
       const sendText = async () => {
         const value = text.trim();
@@ -2318,6 +2357,31 @@ window.__ModuleLoader__.load({
                 },
               }, h(Icon, { name: 'refresh', size: 12 }), t.retry),
             ),
+
+            previewShot && h('div', {
+              className: 'dd-preview',
+              onPointerDown: (event) => event.stopPropagation(),
+              onPointerUp: (event) => event.stopPropagation(),
+              onPointerCancel: (event) => event.stopPropagation(),
+            },
+              h('img', { src: shotUrl(previewShot.path), alt: previewShot.name, draggable: false }),
+              h('div', { className: 'dd-preview-actions' },
+                h('button', {
+                  type: 'button',
+                  className: 'dd-preview-copy',
+                  title: t.previewCopy,
+                  'aria-label': t.previewCopy,
+                  onClick: () => void copyPreview(),
+                }, h(Icon, { name: 'copy', size: 12 })),
+                h('button', {
+                  type: 'button',
+                  className: 'dd-preview-close',
+                  title: t.previewClose,
+                  'aria-label': t.previewClose,
+                  onClick: () => setPreviewShot(null),
+                }, h(Icon, { name: 'close', size: 12 })),
+              ),
+            ),
           ),
         ),
 
@@ -2329,8 +2393,8 @@ window.__ModuleLoader__.load({
                 key: shot.path,
                 type: 'button',
                 className: 'dd-thumb',
-                'data-selected': shot.selected ? 'true' : 'false',
-                title: shot.selected ? t.selected : shot.name,
+                'data-selected': previewShot?.path === shot.path ? 'true' : 'false',
+                title: previewShot?.path === shot.path ? t.selected : shot.name,
                 onClick: () => void selectShot(shot),
               }, h('img', { src: shotUrl(shot.path), alt: shot.name, draggable: false }))),
         ),
@@ -2416,6 +2480,7 @@ window.__ModuleLoader__.load({
       const [frameWidth, setFrameWidth] = useState(320);
       const [shots, setShots] = useState([]);
       const [stripOpen, setStripOpen] = useState(false);
+      const [previewShot, setPreviewShot] = useState(null);
       const [inputOpen, setInputOpen] = useState(false);
       const [text, setText] = useState('');
       const [linkOpen, setLinkOpen] = useState(false);
@@ -2442,6 +2507,10 @@ window.__ModuleLoader__.load({
         shared.iosKind = kind;
         saveStore();
       }, [udid, kind]);
+
+      useEffect(() => {
+        setPreviewShot(null);
+      }, [udid]);
 
       const refreshDevices = useCallback(async () => {
         try {
@@ -2678,6 +2747,28 @@ window.__ModuleLoader__.load({
         });
       };
 
+      const selectShot = useCallback(async (shot) => {
+        if (!shot) return;
+        setPreviewShot(shot);
+        if (shot.selected) return;
+        try {
+          await postJson('/screenshots/select', { path: shot.path });
+          setShots((previous) => previous.map((item) => ({ ...item, selected: item.path === shot.path })));
+        } catch (selectError) {
+          setNotice(selectError.message);
+        }
+      }, []);
+
+      const copyPreview = useCallback(async () => {
+        if (!previewShot) return;
+        try {
+          await copyShotImage(previewShot.path);
+          setNotice(t.copyShotDone);
+        } catch (copyError) {
+          setNotice(t.copyShotFailed.replace('{error}', copyError.message));
+        }
+      }, [previewShot, t]);
+
       const capture = async () => {
         if (!udid) return;
         try {
@@ -2913,6 +3004,31 @@ window.__ModuleLoader__.load({
                   onClick: () => setNonce((value) => value + 1),
                 }, h(Icon, { name: 'refresh', size: 12 }), t.retry),
               ),
+
+              previewShot && h('div', {
+                className: 'dd-preview',
+                onPointerDown: (event) => event.stopPropagation(),
+                onPointerUp: (event) => event.stopPropagation(),
+                onPointerCancel: (event) => event.stopPropagation(),
+              },
+                h('img', { src: shotUrl(previewShot.path), alt: previewShot.name, draggable: false }),
+                h('div', { className: 'dd-preview-actions' },
+                  h('button', {
+                    type: 'button',
+                    className: 'dd-preview-copy',
+                    title: t.previewCopy,
+                    'aria-label': t.previewCopy,
+                    onClick: () => void copyPreview(),
+                  }, h(Icon, { name: 'copy', size: 12 })),
+                  h('button', {
+                    type: 'button',
+                    className: 'dd-preview-close',
+                    title: t.previewClose,
+                    'aria-label': t.previewClose,
+                    onClick: () => setPreviewShot(null),
+                  }, h(Icon, { name: 'close', size: 12 })),
+                ),
+              ),
             ),
           ),
 
@@ -2924,15 +3040,9 @@ window.__ModuleLoader__.load({
                   key: shot.path,
                   type: 'button',
                   className: 'dd-thumb',
-                  'data-selected': shot.selected ? 'true' : 'false',
-                  title: shot.selected ? t.selected : shot.name,
-                  onClick: () => {
-                    void apiJson('/screenshots/select', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ path: shot.path }),
-                    }).catch(() => undefined);
-                  },
+                  'data-selected': previewShot?.path === shot.path ? 'true' : 'false',
+                  title: previewShot?.path === shot.path ? t.selected : shot.name,
+                  onClick: () => void selectShot(shot),
                 }, h('img', { src: shotUrl(shot.path), alt: shot.name, draggable: false }))),
           ),
         ),
