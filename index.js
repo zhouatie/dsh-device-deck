@@ -948,6 +948,23 @@ class IosMirrorSession {
       }, 30_000);
       return { success: true };
     }
+    if (type === 'scroll') {
+      const scrollY = Math.max(-64, Math.min(64, Number(action.scrollY) || 0));
+      if (!scrollY) return { success: true };
+      const center = this.ratioPoint(action.ratioX, action.ratioY);
+      const span = Math.round(this.screen.height * Math.min(0.45, 0.12 + Math.abs(scrollY) / 96));
+      const half = Math.max(1, Math.round(span / 2));
+      const centerY = Math.min(Math.max(center.y, half), Math.max(half, this.screen.height - half));
+      const sign = Math.sign(scrollY);
+      await this.request('POST', `${base}/wda/dragfromtoforduration`, {
+        fromX: center.x,
+        fromY: centerY - sign * half,
+        toX: center.x,
+        toY: centerY + sign * half,
+        duration: 0.3,
+      }, 20_000);
+      return { success: true };
+    }
     if (type === 'text') {
       const value = String(action.text || '');
       if (!value) return { success: true };
@@ -1334,6 +1351,45 @@ async function executeAction(serial, action) {
           ['-s', serial, 'shell', 'input', 'swipe', String(x1), String(y1), String(x2), String(y2), String(duration)],
           { timeout: 6000 },
         );
+        return { success: true };
+      }
+      case 'scroll': {
+        const size = await orientedSize(serial, action);
+        const scrollX = Math.max(-256, Math.min(256, Number(action.scrollX) || 0));
+        const scrollY = Math.max(-256, Math.min(256, Number(action.scrollY) || 0));
+        if (!scrollX && !scrollY) return { success: true };
+        const x = Math.round(clamp01(action.ratioX) * size.width);
+        const y = Math.round(clamp01(action.ratioY) * size.height);
+        const session = hub.sessions.get(serial);
+        const controller = session?.scrcpyClient?.controller;
+        if (controller) {
+          const videoWidth = Number(session.metadata?.width) || size.width;
+          const videoHeight = Number(session.metadata?.height) || size.height;
+          await controller.injectScroll({
+            pointerX: Math.round(clamp01(action.ratioX) * videoWidth),
+            pointerY: Math.round(clamp01(action.ratioY) * videoHeight),
+            videoWidth,
+            videoHeight,
+            scrollX,
+            scrollY,
+            buttons: 0,
+          });
+          return { success: true };
+        }
+        if (scrollY) {
+          const half = Math.round(size.height * Math.min(0.4, 0.08 + (Math.abs(scrollY) / 512) * 0.2));
+          const centerY = Math.min(Math.max(y, half), size.height - half);
+          const sign = Math.sign(scrollY);
+          await runAdb(
+            [
+              '-s', serial, 'shell', 'input', 'swipe',
+              String(x), String(centerY + sign * half),
+              String(x), String(centerY - sign * half),
+              '220',
+            ],
+            { timeout: 6000 },
+          );
+        }
         return { success: true };
       }
       case 'key': {

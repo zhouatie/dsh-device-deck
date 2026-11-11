@@ -649,12 +649,13 @@ window.__ModuleLoader__.load({
       .dd-thumb:hover{opacity:1}
       .dd-thumb[data-selected="true"]{border-color:#818cf8;box-shadow:0 0 0 1px rgba(129,140,248,.7);opacity:1}
       .dd-thumb img{height:100%;width:auto;display:block;object-fit:cover}
-      .dd-pop{position:absolute;right:42px;top:50%;transform:translateY(-50%);width:240px;display:flex;flex-direction:column;background:var(--dsw-alias-bg-overlay);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;box-shadow:0 16px 40px rgba(0,0,0,.26);z-index:6;overflow:hidden;color:var(--dsw-alias-label-primary);pointer-events:auto}
+      .dd-pop{position:absolute;right:42px;top:50%;transform:translateY(-50%);width:240px;max-width:calc(100% - 52px);display:flex;flex-direction:column;background:var(--dsw-alias-bg-overlay);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;box-shadow:0 16px 40px rgba(0,0,0,.26);z-index:6;overflow:hidden;color:var(--dsw-alias-label-primary);pointer-events:auto}
       .dd-pop-head{display:flex;align-items:center;justify-content:space-between;gap:8px;height:34px;padding:0 8px 0 10px;border-bottom:1px solid var(--dsw-alias-border-l1);font-size:11.5px;font-weight:500;flex:none}
       .dd-pop-head button{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border:0;border-radius:5px;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer}
       .dd-pop-head button:hover{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary)}
-      .dd-pop textarea{width:100%;height:92px;resize:none;border:0;outline:none;background:transparent;color:var(--dsw-alias-label-primary);padding:9px 10px;font:inherit;font-size:11.5px;line-height:1.6}
-      .dd-pop input{width:100%;height:36px;border:0;outline:none;background:transparent;color:var(--dsw-alias-label-primary);padding:0 10px;font:inherit;font-size:11.5px}
+      .dd-pop textarea{box-sizing:border-box;width:100%;height:92px;resize:none;border:0;outline:none;background:transparent;color:var(--dsw-alias-label-primary);padding:9px 10px;font:inherit;font-size:11.5px;line-height:1.6}
+      .dd-pop textarea.dd-pop-url{height:72px;overflow-y:auto;word-break:break-all;overflow-wrap:anywhere}
+      .dd-pop input{box-sizing:border-box;width:100%;height:36px;border:0;outline:none;background:transparent;color:var(--dsw-alias-label-primary);padding:0 10px;font:inherit;font-size:11.5px}
       .dd-pop-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 9px;border-top:1px solid var(--dsw-alias-border-l1)}
       .dd-pop-hint{font-size:10px;color:var(--dsw-alias-label-secondary);line-height:1.45;min-width:0}
       .dd-send{border:0;border-radius:6px;height:24px;padding:0 10px;background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-base);font:inherit;font-size:11px;font-weight:500;cursor:pointer;flex:none}
@@ -1722,6 +1723,75 @@ window.__ModuleLoader__.load({
         }
       }, [serial, busy, videoSize, flash]);
 
+      const wheelRef = useRef({ timer: 0, dx: 0, dy: 0, x: 0.5, y: 0.5, busy: false });
+
+      const flushWheel = useCallback(() => {
+        const pending = wheelRef.current;
+        if (pending.busy) return;
+        const dx = pending.dx;
+        const dy = pending.dy;
+        pending.dx = 0;
+        pending.dy = 0;
+        if ((!dx && !dy) || !serial) return;
+        pending.busy = true;
+        void postJson('/action', {
+          serial,
+          action: {
+            type: 'scroll',
+            ratioX: pending.x,
+            ratioY: pending.y,
+            scrollX: Math.max(-160, Math.min(160, dx * 0.16)),
+            scrollY: Math.max(-160, Math.min(160, dy * 0.16)),
+            frameWidth: videoSize.width,
+            frameHeight: videoSize.height,
+          },
+        }).catch(() => undefined).finally(() => {
+          pending.busy = false;
+          if ((pending.dx || pending.dy) && !pending.timer) {
+            pending.timer = window.setTimeout(() => {
+              pending.timer = 0;
+              flushWheel();
+            }, 32);
+          }
+        });
+      }, [serial, videoSize]);
+
+      const handleWheel = useCallback((event) => {
+        if (status !== 'live' || !serial) return;
+        const ratio = ratioFromEvent(event.clientX, event.clientY);
+        if (!ratio || !ratio.inside) return;
+        event.preventDefault();
+        const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 400 : 1;
+        const pending = wheelRef.current;
+        pending.dx += event.deltaX * unit;
+        pending.dy += event.deltaY * unit;
+        pending.x = ratio.x;
+        pending.y = ratio.y;
+        if (pending.timer) return;
+        pending.timer = window.setTimeout(() => {
+          pending.timer = 0;
+          flushWheel();
+        }, 32);
+      }, [status, serial, flushWheel, ratioFromEvent]);
+
+      const wheelHandlerRef = useRef(handleWheel);
+      wheelHandlerRef.current = handleWheel;
+
+      useEffect(() => {
+        const viewport = viewportRef.current;
+        if (!viewport) return undefined;
+        const listener = (event) => wheelHandlerRef.current(event);
+        viewport.addEventListener('wheel', listener, { passive: false });
+        return () => {
+          viewport.removeEventListener('wheel', listener);
+          const pending = wheelRef.current;
+          if (pending.timer) window.clearTimeout(pending.timer);
+          pending.timer = 0;
+          pending.dx = 0;
+          pending.dy = 0;
+        };
+      }, []);
+
       const handlePointerDown = (event) => {
         if (status !== 'live' || event.button === 2) return;
         const ratio = ratioFromEvent(event.clientX, event.clientY);
@@ -2092,7 +2162,8 @@ window.__ModuleLoader__.load({
             h('span', null, t.link),
             h('button', { type: 'button', onClick: () => setLinkOpen(false), title: t.close }, h(Icon, { name: 'close', size: 12 })),
           ),
-          h('input', {
+          h('textarea', {
+            className: 'dd-pop-url',
             value: url,
             autoFocus: true,
             spellCheck: false,
@@ -2138,6 +2209,8 @@ window.__ModuleLoader__.load({
       const [stripOpen, setStripOpen] = useState(false);
       const [inputOpen, setInputOpen] = useState(false);
       const [text, setText] = useState('');
+      const [linkOpen, setLinkOpen] = useState(false);
+      const [url, setUrl] = useState('');
       const [notice, setNotice] = useState('');
       const [ripple, setRipple] = useState(null);
       const [railTip, setRailTip] = useState(null);
@@ -2284,6 +2357,69 @@ window.__ModuleLoader__.load({
         }
       }, [udid, kind]);
 
+      const wheelRef = useRef({ timer: 0, dy: 0, x: 0.5, y: 0.5, busy: false });
+
+      const flushWheel = useCallback(() => {
+        const pending = wheelRef.current;
+        if (pending.busy) return;
+        const dy = pending.dy;
+        pending.dy = 0;
+        if (!dy || !udid) return;
+        pending.busy = true;
+        void postJson('/ios/action', {
+          udid,
+          kind,
+          action: {
+            type: 'scroll',
+            ratioX: pending.x,
+            ratioY: pending.y,
+            scrollY: Math.max(-48, Math.min(48, dy * 0.16)),
+          },
+        }).catch(() => undefined).finally(() => {
+          pending.busy = false;
+          if (pending.dy && !pending.timer) {
+            pending.timer = window.setTimeout(() => {
+              pending.timer = 0;
+              flushWheel();
+            }, 64);
+          }
+        });
+      }, [udid, kind]);
+
+      const handleWheel = useCallback((event) => {
+        if (status !== 'live' || !udid) return;
+        const ratio = ratioFromEvent(event.clientX, event.clientY);
+        if (!ratio || !ratio.inside) return;
+        event.preventDefault();
+        const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 400 : 1;
+        const pending = wheelRef.current;
+        pending.dy += event.deltaY * unit;
+        pending.x = ratio.x;
+        pending.y = ratio.y;
+        if (pending.timer) return;
+        pending.timer = window.setTimeout(() => {
+          pending.timer = 0;
+          flushWheel();
+        }, 160);
+      }, [status, udid, flushWheel, ratioFromEvent]);
+
+      const wheelHandlerRef = useRef(handleWheel);
+      wheelHandlerRef.current = handleWheel;
+
+      useEffect(() => {
+        const viewport = viewportRef.current;
+        if (!viewport) return undefined;
+        const listener = (event) => wheelHandlerRef.current(event);
+        viewport.addEventListener('wheel', listener, { passive: false });
+        return () => {
+          viewport.removeEventListener('wheel', listener);
+          const pending = wheelRef.current;
+          if (pending.timer) window.clearTimeout(pending.timer);
+          pending.timer = 0;
+          pending.dy = 0;
+        };
+      }, []);
+
       const handlePointerDown = (event) => {
         if (status !== 'live' || event.button === 2) return;
         const ratio = ratioFromEvent(event.clientX, event.clientY);
@@ -2359,6 +2495,14 @@ window.__ModuleLoader__.load({
         setInputOpen(false);
         const sent = await sendAction({ type: 'text', text: value });
         if (sent) setText('');
+      };
+
+      const openUrl = () => {
+        const value = url.trim();
+        if (!value) return;
+        void sendAction({ type: 'openUrl', url: value });
+        setUrl('');
+        setLinkOpen(false);
       };
 
       const startDrag = (event) => {
@@ -2486,8 +2630,16 @@ window.__ModuleLoader__.load({
 
           h('div', { className: 'dd-body' },
             h('div', { className: 'dd-rail' },
+              railButton(t.railBack, 'back', () => void sendAction({ type: 'back' }), { disabled: !isLive }),
               railButton(t.iosHome, 'home', () => void sendAction({ type: 'home' }), { disabled: !isLive }),
-              railButton(t.railText, 'keyboard', () => setInputOpen((value) => !value), { disabled: !isLive, active: inputOpen }),
+              railButton(t.railText, 'keyboard', () => {
+                setInputOpen((value) => !value);
+                setLinkOpen(false);
+              }, { disabled: !isLive, active: inputOpen }),
+              railButton(t.railLink, 'link', () => {
+                setLinkOpen((value) => !value);
+                setInputOpen(false);
+              }, { disabled: !isLive, active: linkOpen }),
               h('div', { className: 'dd-rail-sep' }),
               shots.length > 0 && railButton(t.railHistory, 'history', () => setStripOpen((value) => !value), { active: stripOpen }),
               railButton(t.railCapture, 'camera', () => void capture(), { disabled: !isLive }),
@@ -2588,6 +2740,31 @@ window.__ModuleLoader__.load({
           h('div', { className: 'dd-pop-foot' },
             h('span', { className: 'dd-pop-hint' }, t.textHint),
             h('button', { type: 'button', className: 'dd-send', disabled: !text.trim(), onClick: () => void sendText() }, t.sendText),
+          ),
+        ),
+
+        linkOpen && h('div', { className: 'dd-pop', style: { top: '56%' } },
+          h('div', { className: 'dd-pop-head' },
+            h('span', null, t.link),
+            h('button', { type: 'button', onClick: () => setLinkOpen(false), title: t.close }, h(Icon, { name: 'close', size: 12 })),
+          ),
+          h('textarea', {
+            className: 'dd-pop-url',
+            value: url,
+            autoFocus: true,
+            spellCheck: false,
+            placeholder: t.urlHint,
+            onChange: (event) => setUrl(event.target.value),
+            onKeyDown: (event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                openUrl();
+              }
+            },
+          }),
+          h('div', { className: 'dd-pop-foot' },
+            h('span', { className: 'dd-pop-hint' }, t.enterUrl),
+            h('button', { type: 'button', className: 'dd-send', disabled: !url.trim(), onClick: openUrl }, t.open),
           ),
         ),
 
