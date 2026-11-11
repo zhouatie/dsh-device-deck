@@ -190,6 +190,155 @@ async function resolveSerial(requested) {
   return online[0].serial;
 }
 
+const RN_ACTIVITY_RE = /(^|[./])rn([./]|$)|rna|reactnative/i;
+const RN_DEEP_LINK_MAX_AGE_SECONDS = 600;
+
+function parseForegroundActivity(text) {
+  const patterns = [
+    /topResumedActivity=ActivityRecord\{[^}\n]*?\s([A-Za-z0-9_.]+)\/([A-Za-z0-9_.$]+)/,
+    /mResumedActivity:\s*ActivityRecord\{[^}\n]*?\s([A-Za-z0-9_.]+)\/([A-Za-z0-9_.$]+)/,
+    /mCurrentFocus=Window\{[^}\n]*?\s([A-Za-z0-9_.]+)\/([A-Za-z0-9_.$]+)/,
+  ];
+  for (const pattern of patterns) {
+    const match = pattern.exec(String(text || ''));
+    if (match) return { packageName: match[1], activity: match[2] };
+  }
+  return null;
+}
+
+async function readForegroundActivity(serial) {
+  try {
+    const { stdout } = await runAdb(['-s', serial, 'shell', 'dumpsys', 'activity', 'activities'], { timeout: 6000 });
+    const parsed = parseForegroundActivity(stdout);
+    if (parsed) return parsed;
+  } catch {
+    /* fall back to the window dump */
+  }
+  try {
+    const { stdout } = await runAdb(['-s', serial, 'shell', 'dumpsys', 'window', 'displays'], { timeout: 6000 });
+    return parseForegroundActivity(stdout);
+  } catch {
+    return null;
+  }
+}
+
+async function appPids(serial, packageName) {
+  if (!packageName) return [];
+  try {
+    const { stdout } = await runAdb(['-s', serial, 'shell', 'pidof', packageName], { timeout: 4000 });
+    return String(stdout)
+      .trim()
+      .split(/\s+/)
+      .filter((pid) => /^\d+$/.test(pid));
+  } catch {
+    return [];
+  }
+}
+
+function decodeDeepLink(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  try {
+    return JSON.parse(`"${text}"`);
+  } catch {
+    return text
+      .replace(/\\\//g, '/')
+      .replace(/\\u([0-9a-f]{4})/gi, (_, hex) => String.fromCharCode(Number.parseInt(hex, 16)));
+  }
+}
+
+function extractDeepLink(line) {
+  const patterns = [/"deeplink_uri":"((?:[^"\\]|\\.)+)"/, /deeplink_uri=([^,\s]+)/];
+  for (const pattern of patterns) {
+    const match = pattern.exec(String(line || ''));
+    if (!match) continue;
+    const value = decodeDeepLink(match[1]);
+    if (value.length <= 4096 && /^[a-z][a-z0-9+.-]*:\/\//i.test(value)) return value;
+  }
+  return '';
+}
+
+async function readRnDeepLink(serial, packageName) {
+  const pids = await appPids(serial, packageName);
+  let now = 0;
+  try {
+    const { stdout } = await runAdb(['-s', serial, 'shell', 'date', '+%s'], { timeout: 4000 });
+    now = Number(String(stdout).trim());
+  } catch {
+    now = 0;
+  }
+  const baseArgs = ['-s', serial, 'shell', 'logcat', '-d', '-v', 'epoch'];
+  let stdout = '';
+  try {
+    const args = pids.length ? [...baseArgs, '--pid', pids[0]] : baseArgs;
+    ({ stdout } = await runAdb(args, { timeout: 6000 }));
+  } catch {
+    try {
+      ({ stdout } = await runAdb(baseArgs, { timeout: 6000 }));
+    } catch {
+      return '';
+    }
+  }
+  const lines = String(stdout).split('\n');
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const line = lines[index];
+    if (!line.includes('deeplink_uri')) continue;
+    const epoch = Number(line.trim().split(/\s+/)[0]);
+    if (now > 0 && Number.isFinite(epoch) && now - epoch > RN_DEEP_LINK_MAX_AGE_SECONDS) continue;
+    const value = extractDeepLink(line);
+    if (value) return value;
+  }
+  return '';
+}
+
+async function queryWebViewPages(serial, socket) {
+  let port = 0;
+  try {
+    port = await reservePort();
+    await runAdb(['-s', serial, 'forward', `tcp:${port}`, `localabstract:${socket}`], { timeout: 5000 });
+    const response = await fetch(`http://127.0.0.1:${port}/json/list`, {
+      signal: AbortSignal.timeout(2500),
+      cache: 'no-store',
+    });
+    if (!response.ok) return '';
+    const pages = await response.json();
+    if (!Array.isArray(pages)) return '';
+    for (let index = pages.length - 1; index >= 0; index -= 1) {
+      const page = pages[index];
+      const url = String(page?.url || '');
+      if (page?.type === 'page' && /^https?:\/\//i.test(url)) return url;
+    }
+    return '';
+  } catch {
+    return '';
+  } finally {
+    if (port) {
+      try {
+        await runAdb(['-s', serial, 'forward', '--remove', `tcp:${port}`], { timeout: 4000 });
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+}
+
+async function readWebViewUrl(serial, packageName) {
+  const pids = await appPids(serial, packageName);
+  if (!pids.length) return '';
+  let sockets = [];
+  try {
+    const { stdout } = await runAdb(['-s', serial, 'shell', 'cat', '/proc/net/unix'], { timeout: 4000 });
+    const table = String(stdout);
+    sockets = pids.map((pid) => `webview_devtools_remote_${pid}`).filter((socket) => table.includes(socket));
+  } catch {
+    return '';
+  }
+  for (const socket of sockets) {
+    const url = await queryWebViewPages(serial, socket);
+    if (url) return url;
+  }
+  return '';
+}
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -1995,6 +2144,108 @@ async function handleDevices(req, res) {
   }
 }
 
+function clipboardCandidates() {
+  if (process.platform === 'darwin') return [['/usr/bin/pbcopy', []], ['pbcopy', []]];
+  if (process.platform === 'win32') return [['clip', []]];
+  if (process.platform === 'linux') {
+    return [
+      ['wl-copy', []],
+      ['xclip', ['-selection', 'clipboard']],
+      ['xsel', ['--clipboard', '--input']],
+    ];
+  }
+  return [];
+}
+
+async function writeClipboard(text) {
+  const candidates = clipboardCandidates();
+  if (!candidates.length) throw new Error('当前系统不支持写入剪贴板');
+  let lastError;
+  for (const [command, args] of candidates) {
+    try {
+      await new Promise((resolve, reject) => {
+        const child = spawn(command, args, { stdio: ['pipe', 'ignore', 'ignore'] });
+        const timer = setTimeout(() => {
+          child.kill('SIGKILL');
+          reject(new Error(`${command} 超时`));
+        }, 4000);
+        child.once('error', (error) => {
+          clearTimeout(timer);
+          reject(error);
+        });
+        child.once('close', (code) => {
+          clearTimeout(timer);
+          if (code === 0) resolve();
+          else reject(new Error(`${command} 退出码 ${code}`));
+        });
+        child.stdin.on('error', () => {});
+        child.stdin.end(text);
+      });
+      return;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw new Error(`无法写入系统剪贴板：${lastError?.message || '未知错误'}`);
+}
+
+async function handleClipboard(req, res) {
+  if (req.method !== 'POST') {
+    sendJson(res, 405, { error: 'method not allowed' });
+    return;
+  }
+  const body = await readJson(req);
+  const text = String(body?.text || '');
+  if (!text.trim()) {
+    sendJson(res, 400, { error: '复制内容为空' });
+    return;
+  }
+  if (text.length > 8192) {
+    sendJson(res, 400, { error: '复制内容过长' });
+    return;
+  }
+  await writeClipboard(text);
+  sendJson(res, 200, { success: true });
+}
+
+async function handlePageAddress(req, res) {
+  if (req.method !== 'GET') {
+    sendJson(res, 405, { error: 'method not allowed' });
+    return;
+  }
+  const query = routeQuery(req);
+  const serial = await resolveSerial(query.get('serial') || undefined);
+  const foreground = await readForegroundActivity(serial);
+  if (!foreground) {
+    sendJson(res, 404, { error: '未读取到前台页面。请保持设备亮屏并解锁。' });
+    return;
+  }
+  let kind = 'activity';
+  let address = `${foreground.packageName}/${foreground.activity}`;
+  if (RN_ACTIVITY_RE.test(foreground.activity)) {
+    const deepLink = await readRnDeepLink(serial, foreground.packageName);
+    if (deepLink) {
+      kind = 'rn';
+      address = deepLink;
+    }
+  }
+  if (kind === 'activity') {
+    const pageUrl = await readWebViewUrl(serial, foreground.packageName);
+    if (pageUrl) {
+      kind = 'h5';
+      address = pageUrl;
+    }
+  }
+  sendJson(res, 200, {
+    success: true,
+    serial,
+    kind,
+    address,
+    package: foreground.packageName,
+    activity: foreground.activity,
+  });
+}
+
 async function handleAction(req, res) {
   if (req.method !== 'POST') {
     sendJson(res, 405, { error: 'method not allowed' });
@@ -2206,6 +2457,8 @@ export function apply(ctx) {
     ['/api/device-deck/ios/stream', handleIosMirrorStream],
     ['/api/device-deck/ios/action', handleIosAction],
     ['/api/device-deck/ios/screenshot', handleIosScreenshot],
+    ['/api/device-deck/page-address', handlePageAddress],
+    ['/api/device-deck/clipboard', handleClipboard],
     ['/api/device-deck/action', handleAction],
     ['/api/device-deck/screenshot', handleScreenshot],
     ['/api/device-deck/screenshots', handleScreenshots],

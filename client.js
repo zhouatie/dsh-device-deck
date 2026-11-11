@@ -114,6 +114,11 @@ window.__ModuleLoader__.load({
         railFile: '文件',
         railHistory: '历史',
         railCapture: '截图',
+        railCopyPage: '复制页面地址',
+        copyPageDone: '页面地址已复制',
+        copyPageEmpty: '未读取到页面地址',
+        copyPageDenied: '剪贴板不可用',
+        copyPageFailed: '复制失败：{error}',
         railRefresh: '重连',
         railClose: '收起',
       },
@@ -214,6 +219,11 @@ window.__ModuleLoader__.load({
         railFile: 'File',
         railHistory: 'History',
         railCapture: 'Screenshot',
+        railCopyPage: 'Copy page address',
+        copyPageDone: 'Page address copied',
+        copyPageEmpty: 'No page address found',
+        copyPageDenied: 'The clipboard is not available',
+        copyPageFailed: 'Copy failed: {error}',
         railRefresh: 'Reconnect',
         railClose: 'Close',
       },
@@ -303,6 +313,39 @@ window.__ModuleLoader__.load({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(value),
       });
+    }
+
+    async function clipboardMatches(text) {
+      if (!navigator.clipboard?.readText) return true;
+      try {
+        return (await navigator.clipboard.readText()) === text;
+      } catch {
+        return true;
+      }
+    }
+
+    async function copyText(value, deniedMessage) {
+      const text = String(value || '');
+      if (navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(text);
+          if (await clipboardMatches(text)) return;
+        } catch {
+          /* fall back to the textarea path */
+        }
+      }
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.top = '-1000px';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      const copied = document.execCommand('copy');
+      document.body.removeChild(textarea);
+      if (!copied) throw new Error(deniedMessage || 'clipboard unavailable');
+      if (!(await clipboardMatches(text))) throw new Error(deniedMessage || 'clipboard unavailable');
     }
 
     function shotUrl(shotPath) {
@@ -562,8 +605,10 @@ window.__ModuleLoader__.load({
           return h('svg', common, h('rect', { x: 8, y: 3.5, width: 12.5, height: 12.5, rx: 2.2 }), h('rect', { x: 3.5, y: 8, width: 12.5, height: 12.5, rx: 2.2 }));
         case 'keyboard':
           return h('svg', common, h('rect', { x: 2.5, y: 6, width: 19, height: 12, rx: 2.2 }), h('path', { d: 'M6 10h1M10 10h1M14 10h1M18 10h.5M7 14h10' }));
-        case 'link':
-          return h('svg', common, h('path', { d: 'M10 14a4 4 0 0 0 5.7 0l2.6-2.6a4 4 0 1 0-5.7-5.7L11.5 6.8' }), h('path', { d: 'M14 10a4 4 0 0 0-5.7 0l-2.6 2.6a4 4 0 1 0 5.7 5.7l1.1-1.1' }));
+        case 'globe':
+          return h('svg', common, h('circle', { cx: 12, cy: 12, r: 9 }), h('path', { d: 'M3 12h18' }), h('ellipse', { cx: 12, cy: 12, rx: 4.5, ry: 9 }));
+        case 'copy':
+          return h('svg', common, h('rect', { x: 9, y: 9, width: 11, height: 11, rx: 2 }), h('path', { d: 'M5 15V6a2 2 0 0 1 2-2h8' }));
         case 'paperclip':
           return h('svg', common, h('path', { d: 'm21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48' }));
         case 'chevron':
@@ -1856,6 +1901,24 @@ window.__ModuleLoader__.load({
         }
       }, [serial, busy, flash, t]);
 
+      const copyPageAddress = useCallback(async () => {
+        if (!serial) return;
+        try {
+          const data = await apiJson(`/page-address?serial=${encodeURIComponent(serial)}`);
+          const address = String(data?.address || '').trim();
+          if (!address) throw new Error(t.copyPageEmpty);
+          try {
+            await postJson('/clipboard', { text: address });
+          } catch (hostError) {
+            if (/HTTP 404/.test(hostError.message)) throw hostError;
+            await copyText(address, t.copyPageDenied);
+          }
+          flash(t.copyPageDone);
+        } catch (copyError) {
+          flash(t.copyPageFailed.replace('{error}', copyError.message));
+        }
+      }, [serial, flash, t]);
+
       const pushFile = useCallback(async (file) => {
         if (!file || !serial || pushing) return;
         setPushing(true);
@@ -2056,11 +2119,12 @@ window.__ModuleLoader__.load({
               setInputOpen((value) => !value);
               setLinkOpen(false);
             }, { disabled: !serial, active: inputOpen }),
-            railButton(t.railLink, 'link', () => {
+            railButton(t.railLink, 'globe', () => {
               setLinkOpen((value) => !value);
               setInputOpen(false);
             }, { disabled: !serial, active: linkOpen }),
             railButton(t.railFile, 'paperclip', () => fileInputRef.current?.click(), { disabled: !serial || pushing }),
+            railButton(t.railCopyPage, 'copy', () => void copyPageAddress(), { disabled: !serial || busy }),
             h('div', { className: 'dd-rail-sep' }),
             shots.length > 0 && railButton(t.railHistory, 'history', () => setStripOpen((value) => !value), { active: stripOpen }),
             railButton(t.railCapture, 'camera', () => void capture(), { disabled: !serial || busy }),
@@ -2636,7 +2700,7 @@ window.__ModuleLoader__.load({
                 setInputOpen((value) => !value);
                 setLinkOpen(false);
               }, { disabled: !isLive, active: inputOpen }),
-              railButton(t.railLink, 'link', () => {
+              railButton(t.railLink, 'globe', () => {
                 setLinkOpen((value) => !value);
                 setInputOpen(false);
               }, { disabled: !isLive, active: linkOpen }),
