@@ -15,6 +15,7 @@ window.__ModuleLoader__.load({
     const T_END = 5;
     const HEADER_HEIGHT = 36;
     const STRIP_HEIGHT = 50;
+    const LINK_LIMIT = 20;
 
     const COPY = {
       zh: {
@@ -47,6 +48,11 @@ window.__ModuleLoader__.load({
         sendText: '发送',
         open: '打开',
         urlHint: 'https://… 或 app://…',
+        linkHistory: '历史链接',
+        linkEmpty: '还没有打开过链接',
+        linkPin: '置顶',
+        linkUnpin: '取消置顶',
+        linkRemove: '删除',
         retry: '重新连接',
         streamError: '未能连接到设备实时画面',
         disconnected: '设备画面已断开',
@@ -152,6 +158,11 @@ window.__ModuleLoader__.load({
         sendText: 'Send',
         open: 'Open',
         urlHint: 'https://… or app://…',
+        linkHistory: 'Recent links',
+        linkEmpty: 'No links opened yet',
+        linkPin: 'Pin',
+        linkUnpin: 'Unpin',
+        linkRemove: 'Delete',
         retry: 'Reconnect',
         streamError: 'Cannot connect to the device stream',
         disconnected: 'Device stream disconnected',
@@ -229,6 +240,35 @@ window.__ModuleLoader__.load({
       },
     };
 
+    function normalizeLinks(value) {
+      if (!Array.isArray(value)) return [];
+      const links = [];
+      for (const item of value) {
+        const url = typeof item?.url === 'string' ? item.url.trim() : '';
+        if (!url || links.some((entry) => entry.url === url)) continue;
+        links.push({
+          url,
+          pinned: Boolean(item.pinned),
+          at: Number.isFinite(item.at) ? item.at : 0,
+        });
+      }
+      return links;
+    }
+
+    function trimLinks(links) {
+      const next = [];
+      let recent = 0;
+      for (const link of links) {
+        if (link.pinned) {
+          next.push(link);
+          continue;
+        }
+        recent += 1;
+        if (recent <= LINK_LIMIT) next.push(link);
+      }
+      return next;
+    }
+
     function loadStore() {
       try {
         const raw = window.localStorage.getItem(STORE_KEY);
@@ -242,9 +282,10 @@ window.__ModuleLoader__.load({
             x: Number.isFinite(parsed?.offset?.x) ? parsed.offset.x : 0,
             y: Number.isFinite(parsed?.offset?.y) ? parsed.offset.y : 0,
           },
+          links: trimLinks(normalizeLinks(parsed?.links)),
         };
       } catch {
-        return { open: false, platform: 'android', iosKind: 'device', serial: '', offset: { x: 0, y: 0 } };
+        return { open: false, platform: 'android', iosKind: 'device', serial: '', offset: { x: 0, y: 0 }, links: [] };
       }
     }
 
@@ -281,6 +322,39 @@ window.__ModuleLoader__.load({
 
     function useSharedPlatform() {
       return useSyncExternalStore(subscribeStore, () => shared.platform);
+    }
+
+    function useSharedLinks() {
+      return useSyncExternalStore(subscribeStore, () => shared.links);
+    }
+
+    function rememberLink(url) {
+      const value = String(url || '').trim();
+      if (!value) return;
+      const previous = shared.links.find((item) => item.url === value);
+      shared.links = trimLinks([
+        { url: value, pinned: Boolean(previous?.pinned), at: Date.now() },
+        ...shared.links.filter((item) => item.url !== value),
+      ]);
+      saveStore();
+      notifyStore();
+    }
+
+    function toggleLinkPin(url) {
+      const target = shared.links.find((item) => item.url === url);
+      if (!target) return;
+      target.pinned = !target.pinned;
+      shared.links = [...shared.links];
+      saveStore();
+      notifyStore();
+    }
+
+    function removeLink(url) {
+      const next = shared.links.filter((item) => item.url !== url);
+      if (next.length === shared.links.length) return;
+      shared.links = next;
+      saveStore();
+      notifyStore();
     }
 
     function currentCopy(ctx) {
@@ -607,6 +681,11 @@ window.__ModuleLoader__.load({
           return h('svg', common, h('rect', { x: 2.5, y: 6, width: 19, height: 12, rx: 2.2 }), h('path', { d: 'M6 10h1M10 10h1M14 10h1M18 10h.5M7 14h10' }));
         case 'globe':
           return h('svg', common, h('circle', { cx: 12, cy: 12, r: 9 }), h('path', { d: 'M3 12h18' }), h('ellipse', { cx: 12, cy: 12, rx: 4.5, ry: 9 }));
+        case 'pin':
+          return h('svg', common,
+            h('path', { d: 'M9 10.76a2 2 0 0 1-1.11-1.79L7 4h10l-.89 4.97A2 2 0 0 1 15 10.76V12l2 2H7l2-2z' }),
+            h('path', { d: 'M12 14v7' }),
+          );
         case 'copy':
           return h('svg', common, h('rect', { x: 9, y: 9, width: 11, height: 11, rx: 2 }), h('path', { d: 'M5 15V6a2 2 0 0 1 2-2h8' }));
         case 'paperclip':
@@ -630,6 +709,42 @@ window.__ModuleLoader__.load({
         default:
           return null;
       }
+    }
+
+    function LinkHistory({ t, onPick, onTogglePin, onRemove }) {
+      const links = useSharedLinks();
+      if (links.length === 0) return h('div', { className: 'dd-link-empty' }, t.linkEmpty);
+      const ordered = [...links].sort((a, b) => (Number(b.pinned) - Number(a.pinned)) || (b.at - a.at));
+      return h('div', { className: 'dd-link-history' },
+        h('div', { className: 'dd-link-history-title' }, t.linkHistory),
+        ordered.map((link) => h('div', {
+          className: 'dd-link-row',
+          key: link.url,
+          'data-pinned': link.pinned ? 'true' : 'false',
+        },
+          h('button', {
+            type: 'button',
+            className: 'dd-link-pick',
+            title: link.url,
+            onClick: () => onPick(link.url),
+          }, h('span', { className: 'dd-link-url' }, link.url)),
+          h('button', {
+            type: 'button',
+            className: 'dd-link-icon dd-link-pin',
+            title: link.pinned ? t.linkUnpin : t.linkPin,
+            'aria-label': link.pinned ? t.linkUnpin : t.linkPin,
+            'data-pinned': link.pinned ? 'true' : 'false',
+            onClick: () => onTogglePin(link.url),
+          }, h(Icon, { name: 'pin', size: 11 })),
+          h('button', {
+            type: 'button',
+            className: 'dd-link-icon dd-link-remove',
+            title: t.linkRemove,
+            'aria-label': t.linkRemove,
+            onClick: () => onRemove(link.url),
+          }, h(Icon, { name: 'close', size: 10 })),
+        )),
+      );
     }
 
     function LauncherIcon({ size = 16 }) {
@@ -705,6 +820,21 @@ window.__ModuleLoader__.load({
       .dd-pop-hint{font-size:10px;color:var(--dsw-alias-label-secondary);line-height:1.45;min-width:0}
       .dd-send{border:0;border-radius:6px;height:24px;padding:0 10px;background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-base);font:inherit;font-size:11px;font-weight:500;cursor:pointer;flex:none}
       .dd-send:disabled{opacity:.35;cursor:default}
+      .dd-pop-link{top:50%;max-height:calc(100% - 12px)}
+      .dd-link-history{flex:0 1 auto;min-height:0;max-height:170px;overflow-y:auto;padding:3px 4px 4px;border-top:1px solid var(--dsw-alias-border-l1)}
+      .dd-link-history-title{padding:2px 6px 4px;font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--dsw-alias-label-secondary)}
+      .dd-link-empty{padding:10px 8px;border-top:1px solid var(--dsw-alias-border-l1);text-align:center;font-size:10px;line-height:1.5;color:var(--dsw-alias-label-secondary)}
+      .dd-link-row{display:flex;align-items:center;gap:1px;border-radius:6px}
+      .dd-link-row:hover{background:var(--dsw-alias-bg-layer-2)}
+      .dd-link-pick{flex:1;min-width:0;display:flex;align-items:center;border:0;border-radius:6px;background:transparent;color:inherit;font:inherit;padding:6px;text-align:left;cursor:pointer}
+      .dd-link-url{flex:1;min-width:0;font-size:10.5px;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .dd-link-row[data-pinned="true"] .dd-link-url{color:var(--dsw-alias-brand-primary)}
+      .dd-link-pick:hover .dd-link-url{color:var(--dsw-alias-brand-primary)}
+      .dd-link-icon{flex:none;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;padding:0;border:0;border-radius:4px;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer}
+      .dd-link-icon:hover{color:var(--dsw-alias-label-primary)}
+      .dd-link-pin[data-pinned="true"]{color:var(--dsw-alias-brand-primary)}
+      .dd-link-pin[data-pinned="true"] svg{fill:currentColor}
+      .dd-link-remove:hover{color:var(--dsw-alias-state-error-primary)}
       .dd-menu{position:absolute;left:8px;top:40px;width:238px;max-height:300px;overflow-y:auto;padding:4px;background:#232327;border:1px solid rgba(255,255,255,.12);border-radius:8px;box-shadow:0 18px 40px rgba(0,0,0,.45);z-index:8}
       .dd-menu-title{padding:5px 7px 4px;font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;color:#71717a}
       .dd-menu-item{display:flex;align-items:center;gap:7px;width:100%;height:30px;padding:0 7px;border:0;border-radius:6px;background:transparent;color:#e4e4e7;cursor:pointer;font:inherit;text-align:left}
@@ -1393,6 +1523,7 @@ window.__ModuleLoader__.load({
       const menuRef = useRef(null);
       const fileInputRef = useRef(null);
       const frameRef = useRef(null);
+      const linkInputRef = useRef(null);
 
       const device = devices.find((item) => item.serial === serial);
       const deviceName = device?.model || (serial ? serial : 'Android');
@@ -1959,12 +2090,19 @@ window.__ModuleLoader__.load({
         if (sent) setText((current) => (current === value ? '' : current));
       };
 
-      const openUrl = () => {
+      const openUrl = async () => {
         const value = url.trim();
         if (!value || busy) return;
-        void runAction({ type: 'openUrl', url: value });
+        const opened = await runAction({ type: 'openUrl', url: value });
+        if (!opened) return;
+        rememberLink(value);
         setUrl('');
         setLinkOpen(false);
+      };
+
+      const pickLink = (value) => {
+        setUrl(value);
+        linkInputRef.current?.focus();
       };
 
       const startDrag = (event) => {
@@ -2221,12 +2359,13 @@ window.__ModuleLoader__.load({
           ),
         ),
 
-        linkOpen && h('div', { className: 'dd-pop', style: { top: '56%' } },
+        linkOpen && h('div', { className: 'dd-pop dd-pop-link', style: { top: '50%' } },
           h('div', { className: 'dd-pop-head' },
             h('span', null, t.link),
             h('button', { type: 'button', onClick: () => setLinkOpen(false), title: t.close }, h(Icon, { name: 'close', size: 12 })),
           ),
           h('textarea', {
+            ref: linkInputRef,
             className: 'dd-pop-url',
             value: url,
             autoFocus: true,
@@ -2236,13 +2375,19 @@ window.__ModuleLoader__.load({
             onKeyDown: (event) => {
               if (event.key === 'Enter') {
                 event.preventDefault();
-                openUrl();
+                void openUrl();
               }
             },
           }),
+          h(LinkHistory, {
+            t,
+            onPick: pickLink,
+            onTogglePin: toggleLinkPin,
+            onRemove: removeLink,
+          }),
           h('div', { className: 'dd-pop-foot' },
             h('span', { className: 'dd-pop-hint' }, t.enterUrl),
-            h('button', { type: 'button', className: 'dd-send', disabled: !url.trim() || busy, onClick: openUrl }, t.open),
+            h('button', { type: 'button', className: 'dd-send', disabled: !url.trim() || busy, onClick: () => void openUrl() }, t.open),
           ),
         ),
 
@@ -2285,6 +2430,7 @@ window.__ModuleLoader__.load({
       const dragRef = useRef(null);
       const menuRef = useRef(null);
       const frameRef = useRef(null);
+      const linkInputRef = useRef(null);
 
       const device = devices.find((item) => item.udid === udid);
       const deviceName = device?.name || udid || 'iPhone';
@@ -2561,12 +2707,19 @@ window.__ModuleLoader__.load({
         if (sent) setText('');
       };
 
-      const openUrl = () => {
+      const openUrl = async () => {
         const value = url.trim();
         if (!value) return;
-        void sendAction({ type: 'openUrl', url: value });
+        const opened = await sendAction({ type: 'openUrl', url: value });
+        if (!opened) return;
+        rememberLink(value);
         setUrl('');
         setLinkOpen(false);
+      };
+
+      const pickLink = (value) => {
+        setUrl(value);
+        linkInputRef.current?.focus();
       };
 
       const startDrag = (event) => {
@@ -2807,12 +2960,13 @@ window.__ModuleLoader__.load({
           ),
         ),
 
-        linkOpen && h('div', { className: 'dd-pop', style: { top: '56%' } },
+        linkOpen && h('div', { className: 'dd-pop dd-pop-link', style: { top: '50%' } },
           h('div', { className: 'dd-pop-head' },
             h('span', null, t.link),
             h('button', { type: 'button', onClick: () => setLinkOpen(false), title: t.close }, h(Icon, { name: 'close', size: 12 })),
           ),
           h('textarea', {
+            ref: linkInputRef,
             className: 'dd-pop-url',
             value: url,
             autoFocus: true,
@@ -2822,13 +2976,19 @@ window.__ModuleLoader__.load({
             onKeyDown: (event) => {
               if (event.key === 'Enter') {
                 event.preventDefault();
-                openUrl();
+                void openUrl();
               }
             },
           }),
+          h(LinkHistory, {
+            t,
+            onPick: pickLink,
+            onTogglePin: toggleLinkPin,
+            onRemove: removeLink,
+          }),
           h('div', { className: 'dd-pop-foot' },
             h('span', { className: 'dd-pop-hint' }, t.enterUrl),
-            h('button', { type: 'button', className: 'dd-send', disabled: !url.trim(), onClick: openUrl }, t.open),
+            h('button', { type: 'button', className: 'dd-send', disabled: !url.trim(), onClick: () => void openUrl() }, t.open),
           ),
         ),
 
