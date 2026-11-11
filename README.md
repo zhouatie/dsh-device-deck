@@ -162,17 +162,29 @@ A bare host is accepted; port `5555` is added automatically.
 
 ```bash
 pnpm install
+pnpm build
 pnpm check
 ```
 
-`pnpm check` parses both plugin halves with `node --check`.
+The Client half is authored in `src/client/` and bundled into `client.js` by
+`scripts/build-client.mjs` (esbuild). Do not edit `client.js` directly. Run
+`pnpm build` after changing `src/client/`, then commit the rebuilt `client.js`
+and `client.js.map`.
+
+The Host half is split across `host/*.js`. `index.js` only registers the plugin
+and its routes. `pnpm check` rebuilds the Client bundle, checks its syntax, and
+loads every Host module.
 
 Layout:
 
 | Path | Purpose |
 | --- | --- |
-| `index.js` | Host plugin: routes, adb, scrcpy, screenshots, tool |
-| `client.js` | Client plugin: header menu, mirror, WebCodecs |
+| `index.js` | Host plugin entry: routes and teardown |
+| `host/` | Host modules: adb, android, emulator, iOS, screenshots, stream, HTTP, tool |
+| `src/client/` | Client source: UI, mirror, store, API, styles |
+| `client.js` | Generated Client bundle (esbuild) |
+| `client.js.map` | Generated source map |
+| `scripts/` | Build and check scripts |
 | `bin/scrcpy-server` | Bundled scrcpy server 3.3.3 |
 | `cordis.patch.yml` | Bundle patch |
 | `locale/` | Plugin Manager titles and descriptions |

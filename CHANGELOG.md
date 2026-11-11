@@ -5,6 +5,17 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- Split the Client half into `src/client/*.js` and build it into `client.js`
+  with esbuild. Edit the source files, not the generated bundle.
+- Split the Host half into `host/*.js`. `index.js` now only registers the
+  plugin, routes, and lifecycle hooks.
+- `pnpm check` rebuilds the Client bundle, checks its syntax, and loads every
+  Host module.
+
 ## [0.5.0] - 2026-11-11
 
 ### Added

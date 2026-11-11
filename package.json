@@ -39,7 +39,9 @@
   },
   "files": [
     "index.js",
+    "host/*.js",
     "client.js",
+    "client.js.map",
     "cordis.patch.yml",
     "locale/*.json",
     "icon.svg",
@@ -53,7 +55,9 @@
     "CONTRIBUTING.md"
   ],
   "scripts": {
-    "check": "node --check index.js && node --check client.js"
+    "build": "node scripts/build-client.mjs",
+    "check": "node scripts/build-client.mjs && node --check client.js && node scripts/check-host.mjs",
+    "prepack": "node scripts/build-client.mjs"
   },
   "dependencies": {
     "@yume-chan/adb": "2.6.3",
@@ -73,5 +77,8 @@
         "@deepseek-ai/dsh-client-ui-conversation"
       ]
     }
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
   }
 }

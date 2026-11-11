@@ -49,7 +49,8 @@ republished; bump the version instead.
    git push origin "v$(node -p "require('./package.json').version")"
    ```
 
-5. The `publish` workflow runs on the tag. It uses OIDC and runs:
+5. The `publish` workflow runs on the tag. It installs dependencies, runs
+   `pnpm check`, and publishes with OIDC:
 
    ```text
    npm publish --provenance --access public

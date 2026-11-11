@@ -1,0 +1,10 @@
+export const API = '/api/device-deck';
+export const STORE_KEY = ['dsh-device-deck', 'state', 'v1'].join('.');
+export const T_META = 1;
+export const T_CONFIG = 2;
+export const T_DATA = 3;
+export const T_ERROR = 4;
+export const T_END = 5;
+export const HEADER_HEIGHT = 36;
+export const STRIP_HEIGHT = 50;
+export const LINK_LIMIT = 20;

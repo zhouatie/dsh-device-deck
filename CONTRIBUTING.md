@@ -6,10 +6,17 @@ Thanks for taking a look at Device Deck.
 
 ```bash
 pnpm install
+pnpm build
 pnpm check
 ```
 
-`pnpm check` runs `node --check` on both halves of the plugin.
+The Client half lives in `src/client/` and is bundled into `client.js` by
+esbuild. Edit the source files, not the generated bundle. Run `pnpm build` and
+commit the rebuilt `client.js` and `client.js.map` with your changes.
+
+The Host half is split across `host/*.js`; `index.js` only wires routes and
+lifecycle. `pnpm check` rebuilds the Client bundle, checks its syntax, and loads
+every Host module.
 
 To try the plugin in DeepSeek Harness, install this folder as a local bundle
 through the plugin manager, then refresh the Web page.
@@ -22,6 +29,7 @@ through the plugin manager, then refresh the Web page.
 - Update `README.md`, `README.zh-CN.md`, and `CHANGELOG.md` when behavior or
   configuration changes.
 - Do not commit `node_modules`, generated screenshots, or local profile data.
+  Do commit the generated `client.js` and `client.js.map`.
 - State which platform you tested: Android, iOS simulator, or both.
 
 ## Releases
