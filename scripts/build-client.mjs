@@ -1,10 +1,12 @@
 import { build } from 'esbuild';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ID = 'dsh-device-deck';
-const OUT = path.join(ROOT, 'client.js');
+const OUT = path.join(ROOT, 'lib/client.js');
+fs.mkdirSync(path.dirname(OUT), { recursive: true });
 
 await build({
   entryPoints: [path.join(ROOT, 'src/client/index.js')],

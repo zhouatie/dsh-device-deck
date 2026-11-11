@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- Split the Client half into `src/client/*.js` and build it into `client.js`
-  with esbuild. Edit the source files, not the generated bundle.
+- Split the Client half into `src/client/*.js` and build it into
+  `lib/client.js` with esbuild. Edit the source files, not the generated bundle.
 - Split the Host half into `host/*.js`. `index.js` now only registers the
   plugin, routes, and lifecycle hooks.
 - `pnpm check` rebuilds the Client bundle, checks its syntax, and loads every

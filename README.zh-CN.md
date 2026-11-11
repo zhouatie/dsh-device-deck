@@ -133,8 +133,8 @@ pnpm check
 ```
 
 Client 半侧的源码在 `src/client/`，由 `scripts/build-client.mjs`（esbuild）构建为
-`client.js`。不要直接编辑 `client.js`。修改 `src/client/` 后运行 `pnpm build`，
-并提交重新生成的 `client.js` 与 `client.js.map`。
+`lib/client.js`。不要直接编辑 `lib/client.js`。修改 `src/client/` 后运行
+`pnpm build`，并提交重新生成的 `lib/client.js` 与 `lib/client.js.map`。
 
 Host 半侧拆在 `host/*.js`。`index.js` 只负责注册插件与路由。`pnpm check` 会重新
 构建 Client bundle、检查其语法，并加载全部 Host 模块。
@@ -146,8 +146,8 @@ Host 半侧拆在 `host/*.js`。`index.js` 只负责注册插件与路由。`pnp
 | `index.js` | Host 插件入口：路由与清理 |
 | `host/` | Host 模块：adb、Android、模拟器、iOS、截图、视频流、HTTP、工具 |
 | `src/client/` | Client 源码：界面、镜像、状态、API、样式 |
-| `client.js` | 生成的 Client bundle（esbuild） |
-| `client.js.map` | 生成的 source map |
+| `lib/client.js` | 生成的 Client bundle（esbuild） |
+| `lib/client.js.map` | 生成的 source map |
 | `scripts/` | 构建与检查脚本 |
 | `bin/scrcpy-server` | 内置 scrcpy server 3.3.3 |
 | `cordis.patch.yml` | Bundle patch |

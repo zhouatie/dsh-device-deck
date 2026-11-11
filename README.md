@@ -166,10 +166,10 @@ pnpm build
 pnpm check
 ```
 
-The Client half is authored in `src/client/` and bundled into `client.js` by
-`scripts/build-client.mjs` (esbuild). Do not edit `client.js` directly. Run
-`pnpm build` after changing `src/client/`, then commit the rebuilt `client.js`
-and `client.js.map`.
+The Client half is authored in `src/client/` and bundled into `lib/client.js`
+by `scripts/build-client.mjs` (esbuild). Do not edit `lib/client.js` directly.
+Run `pnpm build` after changing `src/client/`, then commit the rebuilt
+`lib/client.js` and `lib/client.js.map`.
 
 The Host half is split across `host/*.js`. `index.js` only registers the plugin
 and its routes. `pnpm check` rebuilds the Client bundle, checks its syntax, and
@@ -182,8 +182,8 @@ Layout:
 | `index.js` | Host plugin entry: routes and teardown |
 | `host/` | Host modules: adb, android, emulator, iOS, screenshots, stream, HTTP, tool |
 | `src/client/` | Client source: UI, mirror, store, API, styles |
-| `client.js` | Generated Client bundle (esbuild) |
-| `client.js.map` | Generated source map |
+| `lib/client.js` | Generated Client bundle (esbuild) |
+| `lib/client.js.map` | Generated source map |
 | `scripts/` | Build and check scripts |
 | `bin/scrcpy-server` | Bundled scrcpy server 3.3.3 |
 | `cordis.patch.yml` | Bundle patch |

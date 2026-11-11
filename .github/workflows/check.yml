@@ -18,4 +18,4 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
-      - run: git diff --exit-code -- client.js client.js.map
+      - run: git diff --exit-code -- lib/client.js lib/client.js.map
