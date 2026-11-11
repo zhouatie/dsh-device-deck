@@ -24,6 +24,10 @@ through the plugin manager, then refresh the Web page.
 - Do not commit `node_modules`, generated screenshots, or local profile data.
 - State which platform you tested: Android, iOS simulator, or both.
 
+## Releases
+
+See [RELEASING.md](RELEASING.md) for the npm release flow.
+
 ## Reporting issues
 
 Include:

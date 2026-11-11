@@ -27,20 +27,16 @@ dsh plugin --profile web add dsh-device-deck@0.3.1
 
 ## 更新版本
 
-1. 修改 `package.json` 的 `version`，发布：
-
-   ```bash
-   npm publish
-   ```
-
+1. 按 [RELEASING.md](../RELEASING.md) 发布 npm 版本。
 2. 查询发布时间：
 
    ```bash
-   npm view dsh-device-deck time.<version> --json
+   npm view dsh-device-deck time --json
    ```
 
 3. 更新 `index.json` 的 `version`、`publishTimestamp` 与 `engines.dsh`。
-4. 提交并推送。
+4. 更新本文件顶部的当前版本与安装命令。
+5. 提交并推送。
 
 ## 改用 Git 源
 
