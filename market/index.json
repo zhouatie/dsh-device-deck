@@ -51,11 +51,9 @@
       "versions": [
         {
           "version": "0.3.0",
-          "publishTimestamp": 1794377577,
+          "publishTimestamp": 1794379223,
           "source": {
-            "type": "git",
-            "url": "https://github.com/zhouatie/dsh-device-deck",
-            "commit": "82892aede40dd4282621c3a3ddb5e70e9f4c21c6"
+            "type": "npm"
           },
           "engines": {
             "dsh": ">=0.2.2-rc.1 <0.3.0"

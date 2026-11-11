@@ -4,8 +4,9 @@
 
 ## 当前状态
 
-- `index.json` 使用 Git 源，固定到提交 `82892ae`。
-- 不依赖 npm。别人现在可以把下面的 URL 添加为索引源：
+- `index.json` 使用 npm 源，固定 `dsh-device-deck@0.3.0`。
+- npm 包已发布，发布时间写入 `publishTimestamp`。
+- 索引 URL：
 
   ```text
   https://raw.githubusercontent.com/zhouatie/dsh-device-deck/main/market/index.json
@@ -17,38 +18,46 @@
 2. 打开**插件 → 发现 → 添加索引源**。
 3. 粘贴上面的 URL。
 
-发布前也可以直接用 GitHub 安装：
+也可以直接安装 npm 包：
 
 ```bash
-dsh plugin --profile web add github:zhouatie/dsh-device-deck
+dsh plugin --profile web add dsh-device-deck@0.3.0
 ```
-
-## 切换到 npm 源
-
-1. 登录并发布：
-
-   ```bash
-   npm login
-   npm publish
-   ```
-
-2. 查询实际发布时间：
-
-   ```bash
-   npm view dsh-device-deck time.0.3.0 --json
-   ```
-
-3. 把 `versions[0].source` 改成 `{ "type": "npm" }`，并把 `publishTimestamp` 改成实际时间。
-4. 提交并推送。
 
 ## 更新版本
 
-- Git 源：推送新提交后，把 `source.commit` 换成新的 40 位 SHA，`publishTimestamp` 换成提交时间。
-- npm 源：发布新版本后，更新 `version` 与 `publishTimestamp`。
-- 当前市场没有升级操作，升级要先卸载再安装。
+1. 修改 `package.json` 的 `version`，发布：
+
+   ```bash
+   npm publish
+   ```
+
+2. 查询发布时间：
+
+   ```bash
+   npm view dsh-device-deck time.<version> --json
+   ```
+
+3. 更新 `index.json` 的 `version`、`publishTimestamp` 与 `engines.dsh`。
+4. 提交并推送。
+
+## 改用 Git 源
+
+不想走 npm 时，把 `versions[0].source` 换成固定提交：
+
+```json
+{
+  "type": "git",
+  "url": "https://github.com/zhouatie/dsh-device-deck",
+  "commit": "<40 位提交 SHA>"
+}
+```
+
+每次推送新提交后更新 `commit`，否则市场仍安装旧版本。
 
 ## 注意
 
 - 索引没有签名。标题、描述、作者与图标都是索引的声明。
 - 每个列出的版本必须声明 `engines.dsh`，并与包清单一致。
 - 索引 URL 不能经过重定向。请使用 `raw.githubusercontent.com`，不要用 `github.com/.../raw/...`。
+- 当前市场没有升级操作，升级要先卸载再安装。
