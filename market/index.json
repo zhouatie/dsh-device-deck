@@ -2,11 +2,11 @@
   "format": 1,
   "title": {
     "en": "Device Deck Market",
-    "zh": "设备台插件源"
+    "zh": "Device Deck Market"
   },
   "description": {
     "en": "Plugin index for Device Deck.",
-    "zh": "设备台的插件索引。"
+    "zh": "Device Deck 插件索引。"
   },
   "metadata": {
     "categories": {
@@ -23,7 +23,7 @@
       "name": "dsh-device-deck",
       "title": {
         "en": "Device Deck",
-        "zh": "设备台"
+        "zh": "Device Deck"
       },
       "description": {
         "en": "Mirror Android devices and iOS simulators, manage emulators, and hand screenshots to the agent.",
