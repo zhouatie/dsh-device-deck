@@ -55,10 +55,11 @@ export function DevicePicker({
           key: `more-${key}`,
           type: 'button',
           className: 'dd-picker-more',
+          'data-expanded': expanded[key] ? 'true' : 'false',
           onClick: () => toggle(key),
         },
           h('span', null, expanded[key] ? t.menuCollapse : `${t.menuAll} ${total} ${unit}`),
-          h(Icon, { name: 'chevron', size: 9 }),
+          h(Icon, { name: 'chevron', size: 10 }),
         )
       : null;
 
@@ -99,10 +100,10 @@ export function DevicePicker({
     h('div', { className: 'dd-picker-scroll' },
       h('div', { className: 'dd-picker-section' },
         h('span', null, t.menuRunning),
-        h('span', null, String(running.length)),
+        h('span', { className: 'dd-picker-count' }, String(running.length)),
       ),
       running.length === 0
-        ? h('div', { className: 'dd-picker-empty', style: { padding: '10px 12px', textAlign: 'left' } }, t.menuNoOnline)
+        ? h('div', { className: 'dd-picker-empty dd-picker-empty-inline' }, t.menuNoOnline)
         : h('div', null,
             running.slice(0, limit('running', running.length)).map((row) => h('div', {
               key: keyOf(row),
@@ -116,12 +117,8 @@ export function DevicePicker({
               },
                 h('div', { className: 'dd-picker-line' },
                   h('span', {
-                    style: {
-                      display: 'inline-flex',
-                      flex: 'none',
-                      color: row.platform === 'android' ? '#10b981' : 'var(--dsw-alias-label-secondary)',
-                    },
-                  }, h(Icon, { name: 'phone', size: 11 })),
+                    className: 'dd-picker-glyph',
+                  }, h(Icon, { name: 'phone', size: 13 })),
                   h('span', { className: 'dd-picker-name' }, row.name),
                   h('span', {
                     className: 'dd-picker-status',
@@ -135,13 +132,13 @@ export function DevicePicker({
                 className: 'dd-picker-icon',
                 title: t.menuOpenMirror,
                 onClick: () => onOpenAndroid(row),
-              }, h(Icon, { name: 'monitorplay', size: 12 })),
+              }, h(Icon, { name: 'monitorplay', size: 14 })),
               row.platform === 'ios' && h('button', {
                 type: 'button',
                 className: 'dd-picker-icon',
                 title: t.menuOpenSimulator,
                 onClick: () => void onOpenIos(row),
-              }, h(Icon, { name: 'external', size: 12 })),
+              }, h(Icon, { name: 'external', size: 14 })),
               (row.platform === 'ios' || row.kind !== '真机') && h('button', {
                 type: 'button',
                 className: 'dd-picker-icon',
@@ -151,7 +148,7 @@ export function DevicePicker({
                 onClick: () => void onStop(row),
               }, stopping === keyOf(row)
                 ? h('span', { className: 'dd-picker-spinner' })
-                : h(Icon, { name: 'power', size: 12 })),
+                : h(Icon, { name: 'power', size: 13 })),
             )),
             more('running', running.length, t.menuDeviceUnit),
           ),
@@ -159,7 +156,7 @@ export function DevicePicker({
       iosDevices.length > 0 && h(Fragment, { key: 'ios-device-section' },
         h('div', { className: 'dd-picker-section' },
           h('span', null, t.menuIosDevices),
-          h('span', null, String(iosDevices.length)),
+          h('span', { className: 'dd-picker-count' }, String(iosDevices.length)),
         ),
         h('div', null,
           iosDevices.map((device) => h('div', {
@@ -174,8 +171,8 @@ export function DevicePicker({
             },
               h('div', { className: 'dd-picker-line' },
                 h('span', {
-                  style: { display: 'inline-flex', flex: 'none', color: '#0ea5e9' },
-                }, h(Icon, { name: 'phone', size: 11 })),
+                  className: 'dd-picker-glyph',
+                }, h(Icon, { name: 'phone', size: 13 })),
                 h('span', { className: 'dd-picker-name' }, device.name),
                 device.mirroring?.status === 'ready' && h('span', {
                   className: 'dd-picker-status',
@@ -195,7 +192,7 @@ export function DevicePicker({
               className: 'dd-picker-icon',
               title: t.menuIosMirrorOpen,
               onClick: () => onOpenIosDevice(device),
-            }, h(Icon, { name: 'monitorplay', size: 12 })),
+            }, h(Icon, { name: 'monitorplay', size: 14 })),
           )),
         ),
       ),
@@ -208,9 +205,15 @@ export function DevicePicker({
           pendingAvds.slice(0, limit('android', pendingAvds.length)).map((name) => h('div', {
             key: name,
             className: 'dd-picker-row',
+            'data-static': 'true',
           },
-            h('div', { className: 'dd-picker-main', style: { cursor: 'default' } },
-              h('div', { className: 'dd-picker-name' }, name),
+            h('div', { className: 'dd-picker-main' },
+              h('div', { className: 'dd-picker-line' },
+                h('span', {
+                  className: 'dd-picker-glyph',
+                }, h(Icon, { name: 'phone', size: 13 })),
+                h('div', { className: 'dd-picker-name' }, name),
+              ),
               h('div', { className: 'dd-picker-detail' }, t.menuNotStarted),
             ),
             h('button', {
@@ -221,7 +224,7 @@ export function DevicePicker({
             },
               launching === `avd-${name}`
                 ? h('span', { className: 'dd-picker-spinner' })
-                : h(Icon, { name: 'play', size: 9 }),
+                : h(Icon, { name: 'play', size: 10 }),
               h('span', null, launching === `avd-${name}` ? t.menuStartingBtn : t.menuStart),
             ),
           )),
@@ -237,9 +240,15 @@ export function DevicePicker({
           pendingIos.slice(0, limit('ios', pendingIos.length)).map((simulator) => h('div', {
             key: simulator.udid,
             className: 'dd-picker-row',
+            'data-static': 'true',
           },
-            h('div', { className: 'dd-picker-main', style: { cursor: 'default' } },
-              h('div', { className: 'dd-picker-name' }, simulator.name),
+            h('div', { className: 'dd-picker-main' },
+              h('div', { className: 'dd-picker-line' },
+                h('span', {
+                  className: 'dd-picker-glyph',
+                }, h(Icon, { name: 'phone', size: 13 })),
+                h('div', { className: 'dd-picker-name' }, simulator.name),
+              ),
               h('div', { className: 'dd-picker-detail' },
                 `${t.menuShutdown}${simulator.version ? ` · iOS ${simulator.version}` : ''}`,
               ),
@@ -252,7 +261,7 @@ export function DevicePicker({
             },
               launching === `ios-${simulator.udid}`
                 ? h('span', { className: 'dd-picker-spinner' })
-                : h(Icon, { name: 'play', size: 9 }),
+                : h(Icon, { name: 'play', size: 10 }),
               h('span', null, launching === `ios-${simulator.udid}` ? t.menuStartingBtn : t.menuStart),
             ),
           )),
@@ -275,7 +284,7 @@ export function DevicePicker({
 
     h('div', { className: 'dd-picker-wifi' },
       h('div', { className: 'dd-picker-wifi-row' },
-        h(Icon, { name: 'wifi', size: 12 }),
+        h(Icon, { name: 'wifi', size: 14 }),
         h('input', {
           className: 'dd-picker-input',
           value: wifiAddress,
@@ -291,7 +300,7 @@ export function DevicePicker({
         }),
         h('button', {
           type: 'button',
-          className: 'dd-picker-start',
+          className: 'dd-picker-connect',
           disabled: !wifiAddress.trim() || wifiBusy,
           onClick: () => void onConnectWifi(),
         }, wifiBusy ? t.menuConnecting : t.menuConnect),
@@ -300,7 +309,7 @@ export function DevicePicker({
           className: 'dd-picker-icon',
           title: t.menuRefresh,
           onClick: () => void onRefresh(),
-        }, h(Icon, { name: 'refresh', size: 12 })),
+        }, h(Icon, { name: 'refresh', size: 14 })),
       ),
       wifiResult && h('div', {
         className: 'dd-picker-result',
