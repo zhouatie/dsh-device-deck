@@ -92,6 +92,8 @@ export async function listIosDevices() {
       const deviceState = device.properties?.state || device.deviceProperties || {};
       if (hardware.reality !== 'physical') continue;
       if (String(hardware.platform) !== 'iOS') continue;
+      const connectionState = String(connection.state || '');
+      if (connectionState !== 'connected' && connectionState !== 'available') continue;
       const udid = String(hardware.udid || '');
       if (!udid) continue;
       items.push({
@@ -100,7 +102,7 @@ export async function listIosDevices() {
         model: String(hardware.marketingName || ''),
         productType: String(hardware.productType || ''),
         osVersion: String(software.osVersionNumber?.stringValue || deviceState.osVersionNumber || ''),
-        transport: connection.transportType === 'wired' ? 'USB' : '网络',
+        transport: connection.transportType === 'wired' ? 'USB' : connection.transportType === 'localNetwork' ? '网络' : '',
         pairing: String(connection.pairingState || ''),
         booted: deviceState.bootState === 'booted',
         developerMode: Boolean(deviceState.developerModeStatus?.enabled),

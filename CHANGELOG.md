@@ -26,6 +26,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   through the scrcpy clipboard. ASCII text still uses `adb shell input text`.
   Clipboard paste requires an open device mirror.
 
+### Fixed
+
+- Hide paired iOS devices that are not currently reachable. A disconnected
+  iPhone no longer stays in the device menu, and an unknown transport no longer
+  shows “网络”.
+
 ## [0.5.0] - 2026-11-11
 
 ### Added
