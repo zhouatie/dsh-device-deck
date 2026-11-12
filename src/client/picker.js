@@ -1,7 +1,8 @@
 import { Fragment, createElement as h, useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
-import { apiJson, attachShot, shotUrl } from './api.js';
+import { apiJson, attachShot, clearShotHistory, deleteShotFile, shotUrl } from './api.js';
 import { useCopy } from './i18n.js';
+import { bumpShotVersion } from './store.js';
 import { Icon } from './ui.js';
 
 const shotPicker = {
@@ -55,6 +56,8 @@ export function ShotPicker({ ctx, sessionId, inputActions, onClose }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState('');
+  const [removing, setRemoving] = useState('');
+  const [confirmClear, setConfirmClear] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -85,7 +88,7 @@ export function ShotPicker({ ctx, sessionId, inputActions, onClose }) {
   }, [onClose]);
 
   const choose = async (shot) => {
-    if (busy) return;
+    if (busy || removing) return;
     setBusy(shot.path);
     setError('');
     try {
@@ -97,6 +100,47 @@ export function ShotPicker({ ctx, sessionId, inputActions, onClose }) {
       setBusy('');
     }
   };
+
+  const remove = async (shot) => {
+    if (busy || removing) return;
+    setRemoving(shot.path);
+    setError('');
+    try {
+      await deleteShotFile(shot.path);
+      setShots((previous) => previous.filter((item) => item.path !== shot.path));
+      bumpShotVersion();
+    } catch (removeError) {
+      setError(t.pickerDeleteFailed.replace('{error}', removeError.message));
+    } finally {
+      setRemoving('');
+    }
+  };
+
+  const clearAll = async () => {
+    if (busy || removing || shots.length === 0) return;
+    if (!confirmClear) {
+      setConfirmClear(true);
+      return;
+    }
+    setConfirmClear(false);
+    setRemoving('all');
+    setError('');
+    try {
+      await clearShotHistory();
+      setShots([]);
+      bumpShotVersion();
+    } catch (clearError) {
+      setError(t.pickerClearFailed.replace('{error}', clearError.message));
+    } finally {
+      setRemoving('');
+    }
+  };
+
+  useEffect(() => {
+    if (!confirmClear) return undefined;
+    const timer = window.setTimeout(() => setConfirmClear(false), 4000);
+    return () => window.clearTimeout(timer);
+  }, [confirmClear]);
 
   return ReactDOM.createPortal(
     h('div', {
@@ -118,6 +162,13 @@ export function ShotPicker({ ctx, sessionId, inputActions, onClose }) {
           ),
           h('button', {
             type: 'button',
+            className: 'dd-shot-clear',
+            'data-confirm': confirmClear ? 'true' : 'false',
+            disabled: Boolean(busy) || Boolean(removing) || shots.length === 0,
+            onClick: () => void clearAll(),
+          }, removing === 'all' ? t.pickerClearing : confirmClear ? t.pickerClearConfirm : t.pickerClear),
+          h('button', {
+            type: 'button',
             className: 'dd-shot-close',
             title: t.close,
             'aria-label': t.close,
@@ -134,17 +185,29 @@ export function ShotPicker({ ctx, sessionId, inputActions, onClose }) {
               : h(Fragment, null,
                   error && h('div', { className: 'dd-shot-error' }, error),
                   h('div', { className: 'dd-shot-grid' },
-                    shots.map((shot) => h('button', {
+                    shots.map((shot) => h('div', {
                       key: shot.path,
-                      type: 'button',
                       className: 'dd-shot-item',
-                      'data-busy': busy === shot.path ? 'true' : 'false',
-                      disabled: Boolean(busy),
+                      'data-busy': busy === shot.path || removing === shot.path ? 'true' : 'false',
                       title: new Date(shot.at).toLocaleString(),
-                      onClick: () => void choose(shot),
                     },
-                      h('img', { src: shotUrl(shot.path), alt: shot.name, draggable: false }),
-                      h('span', { className: 'dd-shot-time' }, busy === shot.path ? t.pickerBusy : shotTimeText(shot.at)),
+                      h('button', {
+                        type: 'button',
+                        className: 'dd-shot-pick',
+                        disabled: Boolean(busy) || Boolean(removing),
+                        onClick: () => void choose(shot),
+                      },
+                        h('img', { src: shotUrl(shot.path), alt: shot.name, draggable: false }),
+                        h('span', { className: 'dd-shot-time' }, busy === shot.path ? t.pickerBusy : shotTimeText(shot.at)),
+                      ),
+                      h('button', {
+                        type: 'button',
+                        className: 'dd-shot-remove',
+                        title: t.pickerDelete,
+                        'aria-label': t.pickerDelete,
+                        disabled: Boolean(busy) || Boolean(removing),
+                        onClick: () => void remove(shot),
+                      }, h(Icon, { name: 'close', size: 10 })),
                     )),
                   ),
                 ),

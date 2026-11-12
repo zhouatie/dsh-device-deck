@@ -89,6 +89,17 @@ export function useSharedLinks() {
   return useSyncExternalStore(subscribeStore, () => shared.links);
 }
 
+let shotVersion = 0;
+
+export function bumpShotVersion() {
+  shotVersion += 1;
+  notifyStore();
+}
+
+export function useShotVersion() {
+  return useSyncExternalStore(subscribeStore, () => shotVersion);
+}
+
 export function rememberLink(url) {
   const value = String(url || '').trim();
   if (!value) return;

@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import { apiJson, copyShotImage, postJson, shotUrl } from './api.js';
 import { API, HEADER_HEIGHT, STRIP_HEIGHT } from './constants.js';
 import { useCopy } from './i18n.js';
-import { rememberLink, removeLink, saveStore, shared, toggleLinkPin } from './store.js';
+import { rememberLink, removeLink, saveStore, shared, toggleLinkPin, useShotVersion } from './store.js';
 import { Icon, LinkHistory } from './ui.js';
 
 export function IosPanel({ ctx, onClose }) {
@@ -19,6 +19,7 @@ export function IosPanel({ ctx, onClose }) {
   const [offset, setOffset] = useState(shared.offset || { x: 0, y: 0 });
   const [frameWidth, setFrameWidth] = useState(320);
   const [shots, setShots] = useState([]);
+  const shotVersion = useShotVersion();
   const [stripOpen, setStripOpen] = useState(false);
   const [previewShot, setPreviewShot] = useState(null);
   const [inputOpen, setInputOpen] = useState(false);
@@ -92,7 +93,7 @@ export function IosPanel({ ctx, onClose }) {
 
   useEffect(() => {
     void refreshShots();
-  }, [refreshShots]);
+  }, [refreshShots, shotVersion]);
 
   useEffect(() => {
     if (!notice) return undefined;

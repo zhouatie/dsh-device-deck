@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Delete one screenshot from the screenshot picker, or clear all screenshots
+  with a two-step confirmation.
+
 ### Changed
 
 - Split the Client half into `src/client/*.js` and build it into

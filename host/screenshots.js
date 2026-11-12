@@ -81,6 +81,45 @@ export async function pruneShots(serial) {
   }
 }
 
+export async function deleteShot(filePath) {
+  const resolved = path.resolve(String(filePath || ''));
+  if (!resolved.startsWith(SHOT_DIR + path.sep)) throw new Error('截图路径不在设备台目录内');
+  await fsp.unlink(resolved);
+  if (state.selected === resolved) {
+    state.selected = null;
+    saveState();
+  }
+  return resolved;
+}
+
+export async function clearShots() {
+  let names = [];
+  try {
+    names = await fsp.readdir(SHOT_DIR);
+  } catch {
+    return { removed: 0 };
+  }
+  let removed = 0;
+  for (const name of names) {
+    if (!name.startsWith('device-') || !name.endsWith('.png')) continue;
+    try {
+      await fsp.unlink(path.join(SHOT_DIR, name));
+      removed += 1;
+    } catch {
+      /* skip files still in use */
+    }
+  }
+  if (state.selected) {
+    try {
+      await fsp.stat(state.selected);
+    } catch {
+      state.selected = null;
+      saveState();
+    }
+  }
+  return { removed };
+}
+
 export async function selectShot(filePath) {
   const resolved = path.resolve(String(filePath || ''));
   if (!resolved.startsWith(SHOT_DIR + path.sep)) throw new Error('截图路径不在设备台目录内');

@@ -8,7 +8,7 @@ import { RN_ACTIVITY_RE, executeAction, readForegroundActivity, readRnDeepLink, 
 import { adbErrorHint, resolveSerial, runAdb } from './adb.js';
 import { MAX_UPLOAD_BYTES, REMOTE_UPLOAD_DIR, SERIAL_RE, SHOT_DIR, UPLOAD_DIR } from './config.js';
 import { readJson, routeQuery, sanitizeUploadName, sendJson } from './http.js';
-import { captureShot, listShots, pruneShots, selectShot } from './screenshots.js';
+import { captureShot, clearShots, deleteShot, listShots, pruneShots, selectShot } from './screenshots.js';
 import { state } from './state.js';
 import { hub, streamClient } from './stream.js';
 
@@ -186,10 +186,25 @@ export async function handleScreenshot(req, res) {
 }
 
 export async function handleScreenshots(req, res) {
+  if (req.method !== 'GET' && req.method !== 'DELETE') {
+    sendJson(res, 405, { error: 'method not allowed' });
+    return;
+  }
   const query = routeQuery(req);
   const serial = query.get('serial') || undefined;
   if (serial && !SERIAL_RE.test(serial)) {
     sendJson(res, 400, { error: '设备串号格式不正确' });
+    return;
+  }
+  if (req.method === 'DELETE') {
+    const target = query.get('path');
+    if (target) {
+      const deleted = await deleteShot(target);
+      sendJson(res, 200, { success: true, deleted });
+      return;
+    }
+    const result = await clearShots();
+    sendJson(res, 200, { success: true, removed: result.removed });
     return;
   }
   const items = await listShots(serial);

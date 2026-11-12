@@ -55,6 +55,14 @@ export function shotUrl(shotPath) {
   return `${API}/file?path=${encodeURIComponent(shotPath)}`;
 }
 
+export function deleteShotFile(shotPath) {
+  return apiJson(`/screenshots?path=${encodeURIComponent(shotPath)}`, { method: 'DELETE' });
+}
+
+export function clearShotHistory() {
+  return apiJson('/screenshots', { method: 'DELETE' });
+}
+
 export async function copyShotImage(shotPath) {
   if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') {
     throw new Error('clipboard unavailable');

@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import { apiJson, copyShotImage, copyText, postJson, shotUrl } from './api.js';
 import { API, HEADER_HEIGHT, STRIP_HEIGHT, T_CONFIG, T_DATA, T_END, T_ERROR, T_META } from './constants.js';
 import { useCopy } from './i18n.js';
-import { rememberLink, removeLink, saveStore, shared, toggleLinkPin } from './store.js';
+import { rememberLink, removeLink, saveStore, shared, toggleLinkPin, useShotVersion } from './store.js';
 import { avcCodecString, concatBytes, Icon, LinkHistory, statusLabel } from './ui.js';
 
 export function Panel({ ctx, onClose }) {
@@ -16,6 +16,7 @@ export function Panel({ ctx, onClose }) {
   const [error, setError] = useState('');
   const [videoSize, setVideoSize] = useState({ width: 1080, height: 2400 });
   const [shots, setShots] = useState([]);
+  const shotVersion = useShotVersion();
   const [stripOpen, setStripOpen] = useState(false);
   const [previewShot, setPreviewShot] = useState(null);
   const [inputOpen, setInputOpen] = useState(false);
@@ -131,7 +132,7 @@ export function Panel({ ctx, onClose }) {
 
   useEffect(() => {
     void refreshShots();
-  }, [refreshShots]);
+  }, [refreshShots, shotVersion]);
 
   useEffect(() => {
     if (shots.length === 0) {
