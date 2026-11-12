@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   Host module.
 - Restyle the text-input and open-link popovers with a solid light surface,
   an inset input field, and a translucent close-button hover.
+- Send text containing non-ASCII characters (for example Chinese) by pasting
+  through the scrcpy clipboard. ASCII text still uses `adb shell input text`.
+  Clipboard paste requires an open device mirror.
 
 ## [0.5.0] - 2026-11-11
 

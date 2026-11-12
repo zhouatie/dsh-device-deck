@@ -146,7 +146,8 @@ A bare host is accepted; port `5555` is added automatically.
 - Open link on iOS devices uses WebDriverAgent's `/url` endpoint and needs
   iOS 16.4 or later. Older versions fall back to Siri and may fail.
 - H.264 only. H.265 devices show an error.
-- Text input uses `adb shell input text`, so it accepts ASCII only.
+- Text input uses `adb shell input text` for ASCII. Other text is pasted
+  through the scrcpy clipboard, so the device mirror must be open.
 - One device is mirrored at a time.
 - iOS simulator mirroring also uses WebDriverAgent and builds in about a minute.
 - iOS device mirroring depends on WebDriverAgent and keeps one session per device.

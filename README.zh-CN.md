@@ -114,7 +114,7 @@
 - iOS 真机的返回用左边缘滑动手势模拟，只在支持该手势的页面生效。
 - iOS 真机的打开链接依赖 WebDriverAgent 的 `/url` 接口，需要 iOS 16.4 或更高版本。更早版本回退 Siri，可能失败。
 - 仅 H.264。H.265 设备会提示错误。
-- 文本输入走 `adb shell input text`，仅支持 ASCII。
+- 文本输入默认走 `adb shell input text`。含中文等非 ASCII 字符时改用 scrcpy 剪贴板粘贴，需要已打开设备镜像。
 - 同一时间只镜像一台设备。
 - iOS 模拟器镜像使用 WebDriverAgent，首次构建约 1 分钟。
 - iOS 真机镜像依赖 WebDriverAgent，每台真机一个独立会话。

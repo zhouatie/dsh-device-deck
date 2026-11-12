@@ -174,6 +174,24 @@ function toAdbInputText(text) {
   );
 }
 
+const ASCII_TEXT_RE = /^[\x20-\x7E]*$/;
+
+async function sendText(serial, text) {
+  if (ASCII_TEXT_RE.test(text)) {
+    await runAdb(['-s', serial, 'shell', 'input', 'text', toAdbInputText(text)], { timeout: 8000 });
+    return;
+  }
+  const controller = hub.sessions.get(serial)?.scrcpyClient?.controller;
+  if (!controller) {
+    throw new Error('文本含非 ASCII 字符，需要剪贴板粘贴。请先打开设备镜像，或在设备上用输入法输入。');
+  }
+  try {
+    await controller.setClipboard({ sequence: 0n, paste: true, content: text });
+  } catch (error) {
+    throw new Error(`剪贴板粘贴失败：${error?.message || error}`);
+  }
+}
+
 function quoteForDeviceShell(value) {
   return `'${String(value).replace(/'/g, `'\\''`)}'`;
 }
@@ -259,10 +277,7 @@ export async function executeAction(serial, action) {
       case 'text': {
         const text = String(action.text || '');
         if (!text) throw new Error('输入文本为空');
-        if (!/^[\x20-\x7E]*$/.test(text)) {
-          throw new Error('ADB 输入仅支持英文、数字与常见符号。中文请用系统输入法。');
-        }
-        await runAdb(['-s', serial, 'shell', 'input', 'text', toAdbInputText(text)], { timeout: 8000 });
+        await sendText(serial, text);
         return { success: true };
       }
       case 'openUrl': {
