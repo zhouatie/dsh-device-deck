@@ -4,7 +4,7 @@ import { Panel } from './android.js';
 import { currentCopy } from './i18n.js';
 import { IosPanel } from './ios.js';
 import { makeLauncher } from './launcher.js';
-import { openShotPicker } from './picker.js';
+import { closeShotPicker, openShotPicker, ShotPicker, useShotPickerSession } from './picker.js';
 import { setSharedOpen, shared, useSharedOpen, useSharedPlatform } from './store.js';
 import { CSS } from './styles.js';
 import { Icon } from './ui.js';
@@ -13,6 +13,7 @@ function makeMirrorHost(ctx) {
   return function DeviceMirrorHost() {
     const open = useSharedOpen();
     const platform = useSharedPlatform();
+    const shotSession = useShotPickerSession();
 
     useEffect(() => {
       const onKeyDown = (event) => {
@@ -42,6 +43,13 @@ function makeMirrorHost(ctx) {
                 }),
             document.body,
           )
+        : null,
+      shotSession
+        ? h(ShotPicker, {
+            ctx,
+            sessionId: shotSession,
+            onClose: () => closeShotPicker(shotSession),
+          })
         : null,
     );
   };

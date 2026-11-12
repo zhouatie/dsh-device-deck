@@ -25,18 +25,17 @@ export function closeShotPicker(sessionId) {
   notifyShotPicker();
 }
 
-export function useShotPickerOpen(sessionId) {
-  const [open, setOpen] = useState(shotPicker.sessionId === sessionId);
+export function useShotPickerSession() {
+  const [sessionId, setSessionId] = useState(shotPicker.sessionId);
   useEffect(() => {
-    const sync = () => setOpen(shotPicker.sessionId === sessionId);
+    const sync = () => setSessionId(shotPicker.sessionId);
     shotPicker.listeners.add(sync);
     sync();
     return () => {
       shotPicker.listeners.delete(sync);
-      if (shotPicker.sessionId === sessionId) closeShotPicker(sessionId);
     };
-  }, [sessionId]);
-  return open;
+  }, []);
+  return sessionId;
 }
 
 function shotTimeText(at) {

@@ -2,7 +2,6 @@ import { Fragment, createElement as h, useCallback, useEffect, useRef, useState 
 import ReactDOM from 'react-dom';
 import { apiJson, postJson } from './api.js';
 import { useCopy } from './i18n.js';
-import { closeShotPicker, ShotPicker, useShotPickerOpen } from './picker.js';
 import { notifyStore, saveStore, setSharedOpen, shared, useSharedOpen } from './store.js';
 import { formatDuration, Icon, LauncherIcon } from './ui.js';
 
@@ -312,7 +311,7 @@ export function DevicePicker({
 }
 
 export function makeLauncher(ctx) {
-  return function DeviceMirrorLauncher(props) {
+  return function DeviceMirrorLauncher() {
     const open = useSharedOpen();
     const [menuOpen, setMenuOpen] = useState(false);
     const [menuRect, setMenuRect] = useState(null);
@@ -325,7 +324,6 @@ export function makeLauncher(ctx) {
     const [wifiBusy, setWifiBusy] = useState(false);
     const [wifiResult, setWifiResult] = useState(null);
     const t = useCopy(ctx);
-    const shotPickerOpen = useShotPickerOpen(props.sessionId);
     const buttonRef = useRef(null);
     const menuRef = useRef(null);
 
@@ -514,12 +512,6 @@ export function makeLauncher(ctx) {
         h(LauncherIcon, { size: 16 }),
         deviceCount > 0 && h('span', { className: 'dd-launcher-count' }, deviceCount > 99 ? '99+' : String(deviceCount)),
       ),
-      shotPickerOpen && h(ShotPicker, {
-        ctx,
-        sessionId: props.sessionId,
-        inputActions: props.inputActions,
-        onClose: () => closeShotPicker(props.sessionId),
-      }),
       menuOpen && menuRect
         ? ReactDOM.createPortal(
             h(DevicePicker, {
