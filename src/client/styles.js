@@ -59,7 +59,7 @@ export const CSS = `
   .dd-preview-actions button{display:flex;align-items:center;justify-content:center;width:24px;height:24px;border:0;border-radius:6px;background:rgba(24,24,27,.72);color:#f4f4f5;cursor:pointer;backdrop-filter:blur(4px);transition:background .15s ease}
   .dd-preview-copy:hover{background:rgba(99,102,241,.85)}
   .dd-preview-close:hover{background:rgba(239,68,68,.85)}
-  .dd-pop{position:absolute;right:42px;top:50%;transform:translateY(-50%);width:240px;max-width:calc(100% - 52px);display:flex;flex-direction:column;background:#fff;border:1px solid #e3e3e8;border-radius:10px;box-shadow:0 16px 40px rgba(0,0,0,.22),0 2px 6px rgba(0,0,0,.06);z-index:6;overflow:hidden;color:#1c1c21;pointer-events:auto}
+  .dd-pop{position:absolute;right:calc(100% + 42px);top:50%;transform:translateY(-50%);width:240px;max-width:calc(100% - 52px);display:flex;flex-direction:column;background:#fff;border:1px solid #e3e3e8;border-radius:10px;box-shadow:0 16px 40px rgba(0,0,0,.22),0 2px 6px rgba(0,0,0,.06);z-index:6;overflow:hidden;color:#1c1c21;pointer-events:auto}
   .dd-pop-head{display:flex;align-items:center;justify-content:space-between;gap:8px;height:38px;padding:0 6px 0 12px;font-size:12px;font-weight:600;flex:none}
   .dd-pop-head button{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border:0;border-radius:6px;background:transparent;color:#8f8f98;cursor:pointer;transition:background .15s ease,color .15s ease}
   .dd-pop-head button:hover{background:rgba(0,0,0,.06);color:#1c1c21}
