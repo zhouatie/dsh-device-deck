@@ -5,6 +5,15 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- Keep a connected iPhone in the device menu when its CoreDevice tunnel is idle.
+  A wired device is now matched against the USB bus instead of the tunnel state,
+  and it is listed as “未连接” until the tunnel connects. A failed iOS device
+  lookup now shows a message instead of an empty menu.
+
 ## [0.6.0] - 2026-11-13
 
 ### Added

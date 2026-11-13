@@ -69,6 +69,29 @@ const IOS_DEVICES_TTL_MS = 4000;
 
 let iosDevicesCache = { at: 0, value: null };
 
+const USB_SERIAL_LINE = /"USB Serial Number"\s*=\s*"([^"]+)"/g;
+
+const normalizeUdid = (value) => String(value || '').replace(/-/g, '').toUpperCase();
+
+// devicectl reports the CoreDevice tunnel state, not whether a phone is plugged in.
+// A paired iPhone keeps `state: disconnected` while the tunnel is idle, so ask the
+// USB bus directly for wired presence. Returns null when the probe is unavailable.
+async function usbSerialSet() {
+  try {
+    const { stdout } = await execFileAsync('ioreg', ['-p', 'IOUSB', '-l', '-w', '0'], {
+      timeout: 5000,
+      maxBuffer: 4 * 1024 * 1024,
+    });
+    const serials = new Set();
+    for (const match of String(stdout).matchAll(USB_SERIAL_LINE)) {
+      serials.add(normalizeUdid(match[1]));
+    }
+    return serials;
+  } catch {
+    return null;
+  }
+}
+
 export async function listIosDevices() {
   if (!isMacOS()) {
     return { available: false, message: 'iOS 真机仅支持 macOS。', items: [] };
@@ -84,6 +107,7 @@ export async function listIosDevices() {
       maxBuffer: 8 * 1024 * 1024,
     });
     const data = JSON.parse(await fsp.readFile(file, 'utf8'));
+    const usbSerials = await usbSerialSet();
     const items = [];
     for (const device of data?.result?.devices || []) {
       const hardware = device.properties?.hardware || device.hardwareProperties || {};
@@ -92,10 +116,12 @@ export async function listIosDevices() {
       const deviceState = device.properties?.state || device.deviceProperties || {};
       if (hardware.reality !== 'physical') continue;
       if (String(hardware.platform) !== 'iOS') continue;
-      const connectionState = String(connection.state || '');
-      if (connectionState !== 'connected' && connectionState !== 'available') continue;
       const udid = String(hardware.udid || '');
       if (!udid) continue;
+      const connectionState = String(connection.state || '');
+      const tunnelUp = connectionState === 'connected' || connectionState === 'available';
+      const onUsb = usbSerials ? usbSerials.has(normalizeUdid(udid)) : false;
+      if (!tunnelUp && !onUsb) continue;
       items.push({
         udid,
         name: String(deviceState.name || hardware.marketingName || udid),
@@ -105,6 +131,7 @@ export async function listIosDevices() {
         transport: connection.transportType === 'wired' ? 'USB' : connection.transportType === 'localNetwork' ? '网络' : '',
         pairing: String(connection.pairingState || ''),
         booted: deviceState.bootState === 'booted',
+        connected: tunnelUp,
         developerMode: Boolean(deviceState.developerModeStatus?.enabled),
         mirroring: iosMirrorStatus(udid),
       });

@@ -182,6 +182,10 @@ export function DevicePicker({
                   className: 'dd-picker-status',
                   'data-state': 'starting',
                 }, t.menuStarting),
+                device.connected === false && h('span', {
+                  className: 'dd-picker-status',
+                  'data-state': 'starting',
+                }, t.menuUnconnected),
               ),
               h('div', { className: 'dd-picker-detail' },
                 `${device.model || device.productType || 'iOS'}${device.osVersion ? ` · iOS ${device.osVersion}` : ''}${device.transport ? ` · ${device.transport}` : ''}`,
@@ -277,6 +281,10 @@ export function DevicePicker({
 
       inventory?.adb?.available === false && h('div', { className: 'dd-picker-notice' },
         inventory.adb.error || t.adbMissing,
+      ),
+
+      inventory?.ios?.devices?.available === false && h('div', { className: 'dd-picker-notice' },
+        inventory.ios.devices.message || t.iosDevicesFailed,
       ),
     ),
 
