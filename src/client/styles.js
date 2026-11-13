@@ -64,6 +64,8 @@ export const CSS = `
   .dd-pop-head button{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border:0;border-radius:6px;background:transparent;color:#8f8f98;cursor:pointer;transition:background .15s ease,color .15s ease}
   .dd-pop-head button:hover{background:rgba(0,0,0,.06);color:#1c1c21}
   .dd-pop-head button:focus-visible{outline:2px solid #4f46e5;outline-offset:1px}
+  .dd-pop-head-actions{display:flex;align-items:center;gap:6px;flex:none}
+  .dd-kbd{display:inline-flex;align-items:center;height:18px;padding:0 6px;border:1px solid #ececf0;border-radius:5px;background:#f7f7f9;color:#8f8f98;font:inherit;font-size:9.5px;font-weight:500;line-height:1;white-space:nowrap}
   .dd-pop textarea{box-sizing:border-box;width:calc(100% - 20px);margin:0 10px;height:96px;resize:none;border:1px solid #ececf0;border-radius:8px;outline:none;background:#f7f7f9;color:#1c1c21;padding:8px 10px;font:inherit;font-size:12px;line-height:1.6;transition:background .15s ease,border-color .15s ease,box-shadow .15s ease}
   .dd-pop textarea::placeholder{color:#96969f}
   .dd-pop textarea:hover{background:#f4f4f7}
