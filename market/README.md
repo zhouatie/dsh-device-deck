@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-- `index.json` 使用 npm 源，固定 `dsh-device-deck@0.6.0`。
+- `index.json` 使用 npm 源，固定 `dsh-device-deck@0.6.1`。
 - npm 包已发布，发布时间写入 `publishTimestamp`。
 - 发布由 GitHub Actions OIDC 完成，不需要 npm token。
 - 索引 URL：
@@ -22,7 +22,7 @@
 也可以直接安装 npm 包：
 
 ```bash
-dsh plugin --profile web add dsh-device-deck@0.6.0
+dsh plugin --profile web add dsh-device-deck@0.6.1
 ```
 
 ## 更新版本
